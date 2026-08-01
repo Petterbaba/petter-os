@@ -1,0 +1,29 @@
+@import "tailwindcss";
+
+/* petter-os kjører kun mørkt tema i v0.1 – ingen light-mode.
+   Aksent #c98500 er validert mot kortflaten (dataviz-skillens validator). */
+@theme {
+  --color-bg: #0d0d0c;
+  --color-card: #161614;
+  --color-edge: #262623;
+  --color-grid: #262623;
+  --color-axis: #383835;
+  --color-ink: #ecebe6;
+  --color-ink-2: #a4a39b;
+  --color-ink-3: #7a7973;
+  --color-accent: #c98500;
+  --color-accent-soft: #c9850020;
+
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
