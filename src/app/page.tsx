@@ -13,17 +13,11 @@ const meny = [
 
 export default function Hjem() {
   return (
-    <main className="flex flex-1 flex-col items-center justify-center gap-12 px-4 py-16">
-      <div className="flex flex-col items-center gap-3 text-center">
-        <p className="text-xs font-medium uppercase tracking-widest text-ink-3">
-          petter<span className="text-accent">-os</span>
-        </p>
-        <p className="min-h-[1em] text-7xl font-semibold leading-none tracking-tight sm:text-8xl">
-          <Klokke />
-        </p>
-        <DagensDato className="text-base text-ink-2" />
-      </div>
-      <nav aria-label="Hovedmeny" className="w-full max-w-sm">
+    <main className="flex flex-1 flex-col items-center justify-center gap-12 px-4 py-16 md:flex-row md:items-stretch md:gap-8 md:p-0">
+      <nav
+        aria-label="Hovedmeny"
+        className="order-2 w-full max-w-sm md:order-none md:w-72 md:shrink-0 md:border-r md:border-edge md:pt-24 md:pr-6 md:pl-8"
+      >
         <ul>
           {meny.map((punkt) => (
             <li key={punkt.href} className="border-t border-edge last:border-b">
@@ -40,6 +34,15 @@ export default function Hjem() {
           ))}
         </ul>
       </nav>
+      <div className="order-1 flex flex-col items-center gap-3 text-center md:order-none md:flex-1 md:self-center">
+        <p className="text-xs font-medium uppercase tracking-widest text-ink-3">
+          petter<span className="text-accent">-os</span>
+        </p>
+        <p className="min-h-[1em] text-7xl font-semibold leading-none tracking-tight sm:text-8xl">
+          <Klokke />
+        </p>
+        <DagensDato className="text-base text-ink-2" />
+      </div>
     </main>
   );
 }
