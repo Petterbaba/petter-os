@@ -43,7 +43,16 @@ innlåsing i tredjepartsformater.
 
 ## Arkitektur og konvensjoner
 
-- `src/app/page.tsx` er server component og henter data via
+- Ruter: `/` er hjemsiden (dato + levende klokke + hovedmenyen – bevisst
+  ingen navbar, all navigasjon går via menyen); `/dashbord` viser alt samlet;
+  `/vaner`, `/styrke`, `/investeringer`, `/metrikker` og `/notater` er egne
+  sider per funksjonalitet som gjenbruker modul-komponentene. Undersider
+  bruker `SideHeader` (ordmerke som lenker hjem + dato).
+- Vane-heatmapen (`VaneModul`) er håndbygd CSS-grid (ikke recharts), 26 uker,
+  mandagsstart. Intensitetstrappen `heat-0`–`heat-4` i `globals.css` er
+  validert som ordinal rampe mot kortflaten – endre den ikke uten å kjøre
+  dataviz-validatoren på nytt.
+- `src/app/dashbord/page.tsx` er server component og henter data via
   `getDashboardData()` fra `src/lib/mockdata.ts`; modulene får data som props.
 - Graf-moduler er client components (`"use client"` – recharts krever det);
   `NotatModul` og `DashboardCard` er server-kompatible.
@@ -61,6 +70,8 @@ innlåsing i tredjepartsformater.
 - `transactions` – id, account_id → accounts, date, amount_nok, type
 - `metrics` – id, date, weight_kg (utvides med flere kroppsmetrikker)
 - `notes` – id, date, title, body
+- `habits` – id, name (vanene som trackes: trening, lesing, journaling, …)
+- `habit_entries` – habit_id → habits, date (én rad = gjennomført den dagen)
 
 ## Neste økter (plan)
 

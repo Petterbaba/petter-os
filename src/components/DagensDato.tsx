@@ -14,12 +14,16 @@ function hentDagensDato() {
   return datoFormat.format(new Date());
 }
 
-export function DagensDato() {
+export function DagensDato({
+  className = "text-sm text-ink-3",
+}: {
+  className?: string;
+}) {
   const dato = useSyncExternalStore(
     () => () => {},
     hentDagensDato,
     () => null,
   );
 
-  return <span className="text-sm text-ink-3">{dato}</span>;
+  return <span className={className}>{dato}</span>;
 }
