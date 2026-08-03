@@ -1,6 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import { isoUkenummer } from "@/lib/format";
 
 const datoFormat = new Intl.DateTimeFormat("nb-NO", {
   weekday: "long",
@@ -16,8 +17,10 @@ function hentDagensDato() {
 
 export function DagensDato({
   className = "text-sm text-ink-3",
+  medUke = false,
 }: {
   className?: string;
+  medUke?: boolean;
 }) {
   const dato = useSyncExternalStore(
     () => () => {},
@@ -25,5 +28,12 @@ export function DagensDato({
     () => null,
   );
 
-  return <span className={className}>{dato}</span>;
+  return (
+    <span className={className}>
+      {dato}
+      {dato !== null && medUke && (
+        <span className="text-ink-3"> · uke {isoUkenummer(new Date())}</span>
+      )}
+    </span>
+  );
 }

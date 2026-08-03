@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { DagensDato } from "@/components/DagensDato";
 import { Klokke } from "@/components/Klokke";
+import { SkriveLogo } from "@/components/SkriveLogo";
 
 const meny = [
   { href: "/dashbord", navn: "Dashbord", beskrivelse: "alt på ett brett" },
@@ -35,13 +36,13 @@ export default function Hjem() {
         </ul>
       </nav>
       <div className="order-1 flex flex-col items-center gap-3 text-center md:order-none md:flex-1 md:self-center">
-        <p className="text-xs font-medium uppercase tracking-widest text-ink-3">
-          petter<span className="text-accent">-os</span>
-        </p>
-        <p className="min-h-[1em] text-7xl font-semibold leading-none tracking-tight sm:text-8xl">
+        <h1 className="font-mono text-4xl font-normal tracking-[0.08em] sm:text-5xl">
+          <SkriveLogo />
+        </h1>
+        <p className="min-h-[1em] text-2xl leading-none text-ink-2 sm:text-3xl">
           <Klokke />
         </p>
-        <DagensDato className="text-base text-ink-2" />
+        <DagensDato className="text-sm text-ink-3" medUke />
       </div>
     </main>
   );
