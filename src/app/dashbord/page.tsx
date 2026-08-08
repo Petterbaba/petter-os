@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { getDashboardData } from "@/lib/mockdata";
+import { getDashboardData } from "@/lib/data/dashboard";
 import { SideHeader } from "@/components/SideHeader";
 import { StyrkeModul } from "@/components/StyrkeModul";
 import { InvesteringModul } from "@/components/InvesteringModul";

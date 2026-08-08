@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { getDashboardData } from "@/lib/mockdata";
+import { getSisteOkt, getVolumtrend } from "@/lib/data/workouts";
 import { SideHeader } from "@/components/SideHeader";
 import { StyrkeModul } from "@/components/StyrkeModul";
 
@@ -8,12 +8,15 @@ export const metadata: Metadata = {
 };
 
 export default async function Styrke() {
-  const data = await getDashboardData();
+  const [sisteOkt, volumtrend] = await Promise.all([
+    getSisteOkt(),
+    getVolumtrend(),
+  ]);
 
   return (
     <main className="mx-auto w-full max-w-2xl px-4 py-8 sm:px-6 sm:py-12">
       <SideHeader />
-      <StyrkeModul sisteOkt={data.sisteOkt} volumtrend={data.volumtrend} />
+      <StyrkeModul sisteOkt={sisteOkt} volumtrend={volumtrend} />
     </main>
   );
 }

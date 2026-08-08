@@ -9,7 +9,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import type { Account, PortfolioPoint } from "@/lib/mockdata";
+import type { Account, PortfolioPoint } from "@/lib/types";
 import { formatDato, formatMndKort, formatNok } from "@/lib/format";
 import { DashboardCard } from "./DashboardCard";
 import { ChartTooltip } from "./ChartTooltip";

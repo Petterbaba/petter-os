@@ -15,8 +15,10 @@ export function SkriveLogo() {
 
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      setAntall(TEKST.length);
-      return;
+      // setState via timer-callback, ikke synkront i effect-kroppen
+      // (react-hooks/set-state-in-effect).
+      const timer = setTimeout(() => setAntall(TEKST.length), 0);
+      return () => clearTimeout(timer);
     }
     const timere = Array.from({ length: TEKST.length }, (_, i) =>
       setTimeout(() => setAntall(i + 1), START_MS + (i + 1) * MS_PER_TEGN),

@@ -1,4 +1,4 @@
-import type { Habit, HabitEntry } from "@/lib/mockdata";
+import type { Habit, HabitEntry } from "@/lib/types";
 import { formatDato } from "@/lib/format";
 import { vaneStatusSiste30 } from "@/lib/vaner";
 import { DashboardCard } from "./DashboardCard";

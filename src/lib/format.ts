@@ -14,10 +14,13 @@ export function formatKg(verdi: number): string {
   return `${tallFormat.format(verdi)} kg`;
 }
 
+// NB: "YYYY-MM-DD" parses som UTC-midnatt, så formatering må også skje i
+// UTC – ellers vises datoen én dag for tidlig for betraktere vest for UTC.
 export function formatDato(isoDato: string): string {
   return new Intl.DateTimeFormat("nb-NO", {
     day: "numeric",
     month: "long",
+    timeZone: "UTC",
   }).format(new Date(isoDato));
 }
 
@@ -31,7 +34,7 @@ export function isoUkenummer(dato: Date): number {
 }
 
 export function formatMndKort(isoDato: string): string {
-  return new Intl.DateTimeFormat("nb-NO", { month: "short" })
+  return new Intl.DateTimeFormat("nb-NO", { month: "short", timeZone: "UTC" })
     .format(new Date(isoDato))
     .replace(".", "");
 }

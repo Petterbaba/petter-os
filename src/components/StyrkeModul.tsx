@@ -9,7 +9,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import type { WeeklyVolume, Workout, WorkoutSet } from "@/lib/mockdata";
+import type { WeeklyVolume, Workout, WorkoutSet } from "@/lib/types";
 import { formatDato } from "@/lib/format";
 import { DashboardCard } from "./DashboardCard";
 import { ChartTooltip } from "./ChartTooltip";

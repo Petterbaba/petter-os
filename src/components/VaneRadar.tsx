@@ -9,7 +9,7 @@ import {
   ResponsiveContainer,
   Tooltip,
 } from "recharts";
-import type { Habit, HabitEntry } from "@/lib/mockdata";
+import type { Habit, HabitEntry } from "@/lib/types";
 import { vaneStatusSiste30 } from "@/lib/vaner";
 import { DashboardCard } from "./DashboardCard";
 import { ChartTooltip } from "./ChartTooltip";

@@ -32,6 +32,13 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
+
+# database-backuper (lokale dumper, aldri i git)
+/backups/
+
+# midlertidig passordnotat (slettes når passordet er i passordmanager)
+/PASSORD.md
 
 # vercel
 .vercel

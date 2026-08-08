@@ -1,4 +1,4 @@
-import type { Habit, HabitEntry } from "./mockdata";
+import type { Habit, HabitEntry } from "./types";
 
 export type VaneStatus = Habit & { antall: number };
 

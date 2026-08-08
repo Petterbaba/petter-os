@@ -1,4 +1,4 @@
-import type { Note } from "@/lib/mockdata";
+import type { Note } from "@/lib/types";
 import { formatDato } from "@/lib/format";
 import { DashboardCard } from "./DashboardCard";
 
