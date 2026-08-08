@@ -10,6 +10,7 @@ const meny = [
   { href: "/investeringer", navn: "Investeringer", beskrivelse: "portefølje" },
   { href: "/metrikker", navn: "Metrikker", beskrivelse: "vektkurve" },
   { href: "/notater", navn: "Notater", beskrivelse: "refleksjoner" },
+  { href: "/innstillinger", navn: "Innstillinger", beskrivelse: "konto og passord" },
 ];
 
 export default function Hjem() {
