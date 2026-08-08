@@ -2,13 +2,18 @@
 
 # petter-os
 
-Personlig dashbord («personal operating system») for én bruker: Petter. Tracker
-styrketrening, investeringer, kroppsmetrikker, vaner og notater/refleksjoner.
-Privat prosjekt og samtidig et læringsprosjekt for stacken – gjør ting riktig,
-ikke bare raskt.
+Personlig dashbord («personal operating system») med Petter som primærbruker.
+Tracker styrketrening, investeringer, kroppsmetrikker, vaner og
+notater/refleksjoner. Repoet er OFFENTLIG (aldri hemmeligheter eller
+persondata i committede filer), og appen kan få noen få håndplukkede brukere
+til – anta flere brukere i design, aldri hardkodet «én bruker».
+Læringsprosjekt for stacken – gjør ting riktig, ikke bare raskt.
 
 **Kjerneprinsipp: dataeierskap.** Alle data skal kunne eksporteres. Ingen
 innlåsing i tredjepartsformater.
+
+Driftsdokumentasjon («hvordan gjør jeg …») bor i wikien `docs/` – se
+`docs/README.md`. Auth/brukeradministrasjon: `docs/auth-og-brukere.md`.
 
 ## Stack
 
@@ -28,8 +33,13 @@ innlåsing i tredjepartsformater.
 
 ## Auth og sikkerhet
 
-- Full Supabase Auth + RLS. Én bruker (p.bergandersen@gmail.com), e-post +
-  passord. Signup skal være AVSLÅTT i dashboardet (manuell innstilling).
+- Full Supabase Auth + RLS. E-post + passord. Primærbruker
+  p.bergandersen@gmail.com; ev. nye brukere opprettes MANUELT i dashboardet
+  (Authentication → Users → Create new user). Signup er AVSLÅTT og skal
+  aldri på – repoet er offentlig. Se `docs/auth-og-brukere.md`.
+- Passordbytte for innloggede: `/innstillinger` (server action med
+  `updateUser()`; verifiserer dagens passord først). Ingen reset-flyt for
+  uinnloggede – nødutgang er admin-grep, se wikien.
 - All datatilgang er server-side: server components leser, server actions
   skriver. Ingen browser-side Supabase-klient.
 - `src/proxy.ts` (Next 16-navnet på middleware) fornyer sesjonen per request
@@ -140,7 +150,8 @@ innlåsing i tredjepartsformater.
 
 `/` hjem (klokke + meny) · `/dashbord` alt samlet · `/vaner` heatmap + radar ·
 `/styrke` · `/investeringer` · `/metrikker` (vekt-input + kurve) · `/notater` ·
-`/logg-inn` (eneste uinnloggede side). Undersider bruker `SideHeader`.
+`/innstillinger` (konto/passordbytte) · `/logg-inn` (eneste uinnloggede side).
+Undersider bruker `SideHeader`.
 
 ## Veikart (fase 2–7)
 
