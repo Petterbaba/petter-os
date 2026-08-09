@@ -3,7 +3,7 @@
 > **Denne filen er midlertidig.** Når alle punktene under er gjennomført:
 > slett filen og commit slettingen (`git rm NESTE-STEG.md`). Veikartet
 > videre bor permanent i CLAUDE.md; driftsdokumentasjon i `docs/`.
-> Sist oppdatert: 8. august 2026 (kveld).
+> Sist oppdatert: 9. august 2026 (journal-migrasjonen gjennomført).
 
 ## Gjennomført 8. august
 
@@ -34,42 +34,75 @@
 - Feature-brancher på alt: `git switch -c feat/<navn>` FØR endringer,
   PR på GitHub, «Create a merge commit», rydd brancher etterpå
 
-## PÅGÅENDE: journal (branch `feat/journal`, 9. august)
+## GJENNOMFØRT 9. august: journal (branch `feat/journal`)
 
-Gjort så langt (app-siden er ferdig, databasen står igjen):
+Hele journal-domenet er live på Supabase:
 
-- Migrasjonsfil skrevet: `supabase/migrations/20260809074930_journal.sql`
-  (`journal_entries`, RLS-malen, indeks, updated_at-trigger). **Ikke
-  applisert ennå.**
-- Domenet omdøpt fra «notater» til «journal» overalt: type `JournalEntry`,
-  `src/lib/data/journal.ts`, `src/lib/mock/journal.ts`, `JournalModul`,
-  rute `/journal`, menypunkt, CLAUDE.md. Gamle notat-filer slettet.
-  `npx tsc --noEmit` er ren.
-- `.mcp.json` lagt til: Supabase MCP som prosjektavhengighet (må
-  autentiseres via `/mcp` → supabase → Authenticate).
+- Backup tatt før migrasjonen (`backups/petter-os-20260809-083052.sql`).
+- Migrasjon applisert via MCP og filen omdøpt til skyens versjonsnummer:
+  `supabase/migrations/20260809063105_journal.sql`. `list_migrations`
+  speiler repoet 1:1.
+- Advisors sjekket: security viser kun den kjente og aksepterte leaked
+  password-WARNen (se over); performance kun INFO om ubrukte indekser
+  (journal-indeksen er ny og naturlig ubrukt ennå).
+- `src/lib/database.types.ts` regenerert (inneholder `journal_entries`).
+- `src/lib/data/journal.ts` går mot `journal_entries` (nyest først);
+  `src/lib/mock/journal.ts` er slettet.
+- Skjema for ny innførsel på `/journal`: `src/app/journal/actions.ts`
+  etter metrikker-mønsteret + `JournalSkjema` (+ ny delt `SkjemaTekstFelt`
+  for flerlinjetekst). `JournalModul` fikk tom-tilstand (databasen starter
+  tom). `npx tsc --noEmit` er ren.
 
-Gjenstår (krever Supabase MCP):
+Utvidet samme dag (samme branch): én innførsel per dag + dagsvurdering 1–5.
 
-1. `apply_migration` med innholdet i migrasjonsfilen → omdøp filen til
-   skyens versjonsnummer (`list_migrations` skal speile repoet 1:1).
-2. `get_advisors` (security + performance) skal være grønn.
-3. `generate_typescript_types` → oppdater `src/lib/database.types.ts`.
-4. `src/lib/data/journal.ts`: mock → Supabase (`journal_entries`,
-   `written_on` → domenetypens `date`, nyest først). Slett
-   `src/lib/mock/journal.ts`.
-5. Skjema for ny innførsel på `/journal`: server action etter mønsteret i
-   `src/app/metrikker/actions.ts` (dato via `iDagOslo()`, rund-tur-validering,
-   `revalidatePath` på `/journal` og `/dashbord`, `verdier` tilbake ved feil).
+- Migrasjoner: `20260809070743_journal_one_entry_per_day` (unik
+  `(user_id, written_on)`; den gamle ikke-unike indeksen droppet – unik-
+  indeksen dekker listespørringen) og `20260809070802_day_rating_metric`
+  (`day_rating` som rad i `metric_types` – metrics-modellen gjenbrukt,
+  ingen ny tabell). Backup tatt først
+  (`backups/petter-os-20260809-090651.sql`); advisors fortsatt grønn;
+  `database.types.ts` uendret (verifisert mot regenerert output).
+- Ny innførsel på opptatt dag avvises (23505 fra unik nøkkel → «åpne den
+  med Rediger»-melding). Redigering via `/journal?rediger=<id>` oppdaterer
+  via id, så en innførsel kan også flyttes til en ledig dato.
+- Dagsvurdering: 1–5-velger på `/journal` (gjelder dagen i fokus – den
+  redigerte dagen, ellers i dag), vises som «n/5» i journallisten
+  (flettes inn i datalaget fra `metric_entries`).
+
+Tredje runde (samme branch): heatmap + samlet skjema + animert knapp.
+
+- `/journal` har fått «Skrivedager»-heatmap øverst (binært: dag med/uten
+  innførsel, tittel + vurdering i tooltip, rekke + siste-30 i headeren).
+  Rutenettet er trukket ut i delt `HeatmapRutenett` som også `VaneModul`
+  bruker; datohjelpere flyttet til `src/lib/dato.ts`.
+- Skjemaet er slått sammen: dagsvurderingen (radioknapper 1–5) står til
+  høyre for datofeltet, tittel under, tekst nederst. Én action lagrer
+  innførsel og/eller vurdering – vurdering alene er gyldig lagring (ny-
+  modus). `DagsvurderingVelger` er slettet.
+- Lagre-knappen er animert (egenbygd SaveToggle-variant i appens tokens,
+  ingen nye avhengigheter): pill → spinner-sirkel → hake → «Lagret» →
+  idle, drevet av ekte skjema-status. `motion-reduce` respekteres.
+
+Gjenstår manuelt (Petter):
+
+- [ ] Test i appen: `npm run dev` → `/journal` → lagre en innførsel med
+      vurdering, rediger den, prøv å lagre ny på samme dag (skal avvises),
+      lagre en vurdering alene, sjekk heatmapet og `/dashbord`, og se at
+      lagre-animasjonen kjører. Sjekk også at `/vaner` ser uendret ut
+      (heatmapet der er refaktorert til delt komponent).
+- [ ] PR fra `feat/journal`, «Create a merge commit», rydd branchen.
 
 ## Neste utviklingsøkter (revidert prioritering)
 
 Habits (fase 2) er UTSATT – innholdet (hvilke vaner) er ikke avklart.
 Modellen er triviell; den venter til vanene er bestemt.
 
-1. **Notater** (`feat/notater`) – journaling-MVP, første nye migrasjon:
-   `notes(written_on, title, body)` etter RLS-malen; `src/lib/data/notes.ts`
-   fra mock til Supabase; skjema på `/notater` etter action-mønsteret.
-   Husk backup først. Full migrasjonsflyt per CLAUDE.md.
+1. **Journal-editor** (`feat/journal-editor`) – notert 9. aug: dagens
+   rene `<textarea>` skal erstattes av en ordentlig skriveopplevelse på
+   `/journal`. Ambisjonsnivå avklares når økten starter (markdown?
+   forhåndsvisning? autolagring av utkast?). NB: visningen bruker
+   allerede `whitespace-pre-line`, så linjeskift bevares – editoren
+   bygger videre på det.
 2. **Reiser** (`feat/reiser`) – start på Memory Bank: én tabell
    `trips(title, country, city, started_on, ended_on, cost, rating, notes)`,
    ny rute `/reiser` + menypunkt. Bevisst minimal – kart/årsrapport senere.
