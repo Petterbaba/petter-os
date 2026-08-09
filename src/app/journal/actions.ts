@@ -6,6 +6,7 @@ import {
   lagreDagsvurdering,
   lagreJournalInnforsel,
   oppdaterJournalInnforsel,
+  slettJournalInnforsel,
 } from "@/lib/data/journal";
 import { iDagOslo } from "@/lib/dato";
 import type { ActionResultat } from "@/lib/actions";
@@ -185,6 +186,10 @@ export async function lagreJournalAction(
   if (kunVurdering) {
     return { ok: true, melding: "Vurdering lagret." };
   }
+  return lagretMelding(id, vurdering);
+}
+
+function lagretMelding(id: string, vurdering: number | null): ActionResultat {
   const grunnmelding = id === "" ? "Innførsel lagret." : "Innførsel oppdatert.";
   return {
     ok: true,
@@ -193,4 +198,28 @@ export async function lagreJournalAction(
         ? `${grunnmelding.replace(".", "")} med dagsvurdering.`
         : grunnmelding,
   };
+}
+
+// Sletting er endelig (bekreftelsesdialog i UI-et). Dagsvurderingen for
+// dagen røres ikke – den er en egen måling og kan stå uten innførsel.
+export async function slettJournalAction(
+  _forrige: ActionResultat | undefined,
+  formData: FormData,
+): Promise<ActionResultat> {
+  const id = String(formData.get("id") ?? "").trim();
+  if (!UUID_MONSTER.test(id)) {
+    return { ok: false, melding: "Kunne ikke slette innførselen. Prøv igjen." };
+  }
+
+  try {
+    await slettJournalInnforsel(id);
+  } catch (feil) {
+    // Generisk melding i UI; detaljer kun i serverloggen.
+    console.error("Sletting av journalinnførsel feilet:", feil);
+    return { ok: false, melding: "Kunne ikke slette innførselen. Prøv igjen." };
+  }
+
+  revalidatePath("/journal");
+  revalidatePath("/dashbord");
+  return { ok: true, melding: "Innførsel slettet." };
 }

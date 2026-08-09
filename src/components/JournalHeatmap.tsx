@@ -59,14 +59,31 @@ export function JournalHeatmap({
         nivaaForDag={(dato) =>
           perDag.has(dato) ? NIVAA_MED_INNFORSEL : 0
         }
-        tittelForDag={(dato) => {
+        tooltipForDag={(dato) => {
           const innforsel = perDag.get(dato);
           if (!innforsel) {
-            return `Ingen innførsel · ${formatDato(dato)}`;
+            return (
+              <>
+                <span className="block whitespace-nowrap text-ink-2">
+                  Ingen innførsel
+                </span>
+                <span className="mt-0.5 block whitespace-nowrap text-ink-3">
+                  {formatDato(dato)}
+                </span>
+              </>
+            );
           }
-          const vurdering =
-            innforsel.rating !== undefined ? ` · ${innforsel.rating}/5` : "";
-          return `${innforsel.title}${vurdering} · ${formatDato(dato)}`;
+          return (
+            <>
+              <span className="block max-w-52 truncate font-medium text-ink">
+                {innforsel.title}
+              </span>
+              <span className="mt-0.5 block whitespace-nowrap text-ink-3">
+                {formatDato(dato)}
+                {innforsel.rating !== undefined ? ` · ${innforsel.rating}/5` : ""}
+              </span>
+            </>
+          );
         }}
       />
     </DashboardCard>

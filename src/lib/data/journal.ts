@@ -106,6 +106,23 @@ export async function oppdaterJournalInnforsel(
   }
 }
 
+export async function slettJournalInnforsel(id: string): Promise<void> {
+  const supabase = await opprettServerKlient();
+  const { data, error } = await supabase
+    .from("journal_entries")
+    .delete()
+    .eq("id", id)
+    .select("id");
+
+  if (error) {
+    throw new Error(`Kunne ikke slette journalinnførsel: ${error.message}`);
+  }
+  if (!data || data.length === 0) {
+    // RLS filtrerer bort andres rader – da matcher slettingen ingenting.
+    throw new Error(`Fant ingen journalinnførsel å slette (${id}).`);
+  }
+}
+
 export async function getDagsvurdering(dato: string): Promise<number | null> {
   const supabase = await opprettServerKlient();
   const { data, error } = await supabase

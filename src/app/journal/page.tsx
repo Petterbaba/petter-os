@@ -3,7 +3,7 @@ import { getDagsvurdering, getJournal } from "@/lib/data/journal";
 import { iDagOslo } from "@/lib/dato";
 import { SideHeader } from "@/components/SideHeader";
 import { JournalHeatmap } from "@/components/JournalHeatmap";
-import { JournalModul } from "@/components/JournalModul";
+import { JournalListe } from "@/components/JournalListe";
 import { JournalSkjema } from "@/components/JournalSkjema";
 
 export const metadata: Metadata = {
@@ -51,7 +51,7 @@ export default async function Journal({
           }
         }
       />
-      <JournalModul innforsler={innforsler} kanRedigere />
+      <JournalListe innforsler={innforsler} />
     </main>
   );
 }

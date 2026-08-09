@@ -86,10 +86,12 @@ Tredje runde (samme branch): heatmap + samlet skjema + animert knapp.
 Gjenstår manuelt (Petter):
 
 - [ ] Test i appen: `npm run dev` → `/journal` → lagre en innførsel med
-      vurdering, rediger den, prøv å lagre ny på samme dag (skal avvises),
+      vurdering, rediger den, slett en innførsel (bekreftelsesdialog),
+      prøv å lagre ny på samme dag (skal avvises),
       lagre en vurdering alene, sjekk heatmapet og `/dashbord`, og se at
-      lagre-animasjonen kjører. Sjekk også at `/vaner` ser uendret ut
-      (heatmapet der er refaktorert til delt komponent).
+      lagre-animasjonen kjører. Sjekk også `/vaner`: heatmapet der deler
+      komponent med journalen og har fått samme løft (heldekkende bredde,
+      egne tooltips, stor forbokstav på etikettene).
 - [ ] PR fra `feat/journal`, «Create a merge commit», rydd branchen.
 
 ## Neste utviklingsøkter (revidert prioritering)

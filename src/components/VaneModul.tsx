@@ -54,9 +54,16 @@ export function VaneModul({ vaner, oppforinger, periode }: VaneModulProps) {
         fra={periode.fra}
         til={periode.til}
         nivaaForDag={(dato) => nivaa(antallPerDag.get(dato) ?? 0, vaner.length)}
-        tittelForDag={(dato) =>
-          `${antallPerDag.get(dato) ?? 0} av ${vaner.length} mål · ${formatDato(dato)}`
-        }
+        tooltipForDag={(dato) => (
+          <>
+            <span className="block whitespace-nowrap font-medium text-ink">
+              {antallPerDag.get(dato) ?? 0} av {vaner.length} mål
+            </span>
+            <span className="mt-0.5 block whitespace-nowrap text-ink-3">
+              {formatDato(dato)}
+            </span>
+          </>
+        )}
         visSkala
       />
       <ul className="mt-4 space-y-2">
