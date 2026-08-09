@@ -70,6 +70,11 @@ Driftsdokumentasjon («hvordan gjør jeg …») bor i wikien `docs/` – se
 
 ## Migrasjonsflyt (remote-first – absolutte regler)
 
+0. **KUN prosjektet `petter-os` (ref `mexwxvntjcyinesoiyvw`).** Alle
+   Supabase MCP-kall skal ha denne `project_id`. Rør aldri andre prosjekter
+   på kontoen, og bruk aldri kontonivå-verktøy som oppretter, pauser eller
+   sletter prosjekter. (MCP-serveren i `.mcp.json` kan ikke scopes via URL –
+   `?project_ref=` bryter OAuth-flyten – så denne regelen er håndhevingen.)
 1. SQL-fil skrives FØRST i `supabase/migrations/YYYYMMDDHHMMSS_slug.sql`
    (CLI-kompatibel navngiving).
 2. Appliseres via Supabase MCP `apply_migration` (aldri dashboard-SQL for
