@@ -40,7 +40,8 @@ export type Metric = {
   weightKg: number;
 };
 
-export type Note = {
+// Én datert refleksjon (speiler journal_entries-tabellen).
+export type JournalEntry = {
   id: string;
   date: string; // ISO 8601
   title: string;
@@ -70,7 +71,7 @@ export type DashboardData = {
   kontoer: Account[];
   portefolje: PortfolioPoint[];
   vekt: Metric[];
-  notater: Note[];
+  journal: JournalEntry[];
   vaner: Habit[];
   vaneOppforinger: HabitEntry[];
   vanePeriode: { fra: string; til: string };

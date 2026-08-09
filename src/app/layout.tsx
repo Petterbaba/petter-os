@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "petter-os",
-  description: "Personlig kontrollrom: styrke, investeringer, metrikker og notater.",
+  description: "Personlig kontrollrom: styrke, investeringer, metrikker og journal.",
 };
 
 export default function RootLayout({

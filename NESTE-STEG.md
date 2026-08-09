@@ -34,6 +34,33 @@
 - Feature-brancher på alt: `git switch -c feat/<navn>` FØR endringer,
   PR på GitHub, «Create a merge commit», rydd brancher etterpå
 
+## PÅGÅENDE: journal (branch `feat/journal`, 9. august)
+
+Gjort så langt (app-siden er ferdig, databasen står igjen):
+
+- Migrasjonsfil skrevet: `supabase/migrations/20260809074930_journal.sql`
+  (`journal_entries`, RLS-malen, indeks, updated_at-trigger). **Ikke
+  applisert ennå.**
+- Domenet omdøpt fra «notater» til «journal» overalt: type `JournalEntry`,
+  `src/lib/data/journal.ts`, `src/lib/mock/journal.ts`, `JournalModul`,
+  rute `/journal`, menypunkt, CLAUDE.md. Gamle notat-filer slettet.
+  `npx tsc --noEmit` er ren.
+- `.mcp.json` lagt til: Supabase MCP som prosjektavhengighet (må
+  autentiseres via `/mcp` → supabase → Authenticate).
+
+Gjenstår (krever Supabase MCP):
+
+1. `apply_migration` med innholdet i migrasjonsfilen → omdøp filen til
+   skyens versjonsnummer (`list_migrations` skal speile repoet 1:1).
+2. `get_advisors` (security + performance) skal være grønn.
+3. `generate_typescript_types` → oppdater `src/lib/database.types.ts`.
+4. `src/lib/data/journal.ts`: mock → Supabase (`journal_entries`,
+   `written_on` → domenetypens `date`, nyest først). Slett
+   `src/lib/mock/journal.ts`.
+5. Skjema for ny innførsel på `/journal`: server action etter mønsteret i
+   `src/app/metrikker/actions.ts` (dato via `iDagOslo()`, rund-tur-validering,
+   `revalidatePath` på `/journal` og `/dashbord`, `verdier` tilbake ved feil).
+
 ## Neste utviklingsøkter (revidert prioritering)
 
 Habits (fase 2) er UTSATT – innholdet (hvilke vaner) er ikke avklart.

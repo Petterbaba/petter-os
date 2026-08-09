@@ -4,7 +4,7 @@
 
 Personlig dashbord («personal operating system») med Petter som primærbruker.
 Tracker styrketrening, investeringer, kroppsmetrikker, vaner og
-notater/refleksjoner. Repoet er OFFENTLIG (aldri hemmeligheter eller
+journal/refleksjoner. Repoet er OFFENTLIG (aldri hemmeligheter eller
 persondata i committede filer), og appen kan få noen få håndplukkede brukere
 til – anta flere brukere i design, aldri hardkodet «én bruker».
 Læringsprosjekt for stacken – gjør ting riktig, ikke bare raskt.
@@ -55,7 +55,7 @@ Driftsdokumentasjon («hvordan gjør jeg …») bor i wikien `docs/` – se
 - `src/lib/types.ts` – håndskrevne camelCase-domenetyper = UI-ets kontrakt.
   Komponenter kjenner KUN disse.
 - `src/lib/data/<domene>.ts` – én modul per domene (metrics, workouts,
-  investments, notes, habits); mapper DB-rad → domenetype. Bytte av datakilde
+  investments, journal, habits); mapper DB-rad → domenetype. Bytte av datakilde
   skjer kun her.
 - `src/lib/data/dashboard.ts` – komponerer `DashboardData` med `Promise.all`.
 - `src/lib/mock/<domene>.ts` – mock for domener som ikke er migrert ennå.
@@ -65,7 +65,7 @@ Driftsdokumentasjon («hvordan gjør jeg …») bor i wikien `docs/` – se
   datalaget, aldri av komponenter.
 - Undersider henter kun sitt eget domene (`/metrikker` → `getVekt()`);
   kun `/dashbord` bruker `getDashboardData()`.
-- Status: **metrics er live på Supabase**; workouts, investments, notes,
+- Status: **metrics er live på Supabase**; workouts, investments, journal,
   habits er fortsatt mock.
 
 ## Migrasjonsflyt (remote-first – absolutte regler)
@@ -149,7 +149,7 @@ Driftsdokumentasjon («hvordan gjør jeg …») bor i wikien `docs/` – se
 ## Ruter
 
 `/` hjem (klokke + meny) · `/dashbord` alt samlet · `/vaner` heatmap + radar ·
-`/styrke` · `/investeringer` · `/metrikker` (vekt-input + kurve) · `/notater` ·
+`/styrke` · `/investeringer` · `/metrikker` (vekt-input + kurve) · `/journal` ·
 `/innstillinger` (konto/passordbytte) · `/logg-inn` (eneste uinnloggede side).
 Undersider bruker `SideHeader`.
 
@@ -159,7 +159,9 @@ Undersider bruker `SideHeader`.
    gjennomført); avkryssing på `/vaner`; ekte vaner erstatter mock-generatoren.
 3. **Trening:** `workouts`, `exercises` (normalisert), `workout_sets`,
    view `weekly_volume`; økt-logging på `/styrke` (revurder zod her).
-4. **Notater:** `notes(written_on, title, body)` + skjema.
+4. **Journal** (tidligere «notater» – navnet byttet aug. 2026, `notes` står
+   ledig til et evt. udatert notat-domene): `journal_entries(written_on,
+   title, body)` + skjema. Flere innførsler per dag er tillatt.
 5. **Investeringer (transaksjonsmodell – brukerens valg):** `accounts`,
    `instruments`, `account_transactions`, `instrument_prices` (eksterne
    sluttkurser; kilde velges i fasen – Yahoo Finance har intet offisielt API),
