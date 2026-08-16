@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import type { ActionResultat } from "@/lib/actions";
 
@@ -31,28 +31,34 @@ export function LagreKnappAnimert({
 }) {
   const { pending } = useFormStatus();
   const [fase, setFase] = useState<Fase>("idle");
-  const forrigePending = useRef(false);
 
-  useEffect(() => {
-    const varPending = forrigePending.current;
-    forrigePending.current = pending;
+  // Fasebytter ved pending-overganger settes under render («adjust state
+  // during render»), ikke i en effect. Nytt innsend nullstiller (ellers
+  // blir en påfølgende feil stående med hake og «Lagret» ved siden av
+  // feilmeldingen); fullført innsend med ok-resultat starter suksessfasen.
+  const [forrigePending, setForrigePending] = useState(pending);
+  if (pending !== forrigePending) {
+    setForrigePending(pending);
     if (pending) {
-      // Nytt innsend (mulig midt i suksessfasen, hvis timere cleanupen
-      // nettopp fjernet): nullstill, ellers blir en påfølgende feil
-      // stående med hake og «Lagret» ved siden av feilmeldingen.
       setFase("idle");
-      return;
-    }
-    if (varPending && resultat?.ok) {
+    } else if (resultat?.ok) {
       setFase("suksess");
-      const tilLagret = setTimeout(() => setFase("lagret"), 650);
-      const tilIdle = setTimeout(() => setFase("idle"), 2600);
-      return () => {
-        clearTimeout(tilLagret);
-        clearTimeout(tilIdle);
-      };
     }
-  }, [pending, resultat]);
+  }
+
+  // Timerne er ekte eksterne systemer og hører hjemme i en effect: hver
+  // fase skjer sin neste overgang (650 + 1950 = 2600 ms totalt, som før).
+  // Cleanupen avbryter sekvensen hvis et nytt innsend nullstiller fasen.
+  useEffect(() => {
+    if (fase === "suksess") {
+      const timer = setTimeout(() => setFase("lagret"), 650);
+      return () => clearTimeout(timer);
+    }
+    if (fase === "lagret") {
+      const timer = setTimeout(() => setFase("idle"), 1950);
+      return () => clearTimeout(timer);
+    }
+  }, [fase]);
 
   const visning: "laster" | Fase = pending ? "laster" : fase;
   // Sirkelfasene inverterer fargene (lys sirkel på mørk flate), som i

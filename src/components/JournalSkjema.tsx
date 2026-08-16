@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useState } from "react";
 import { lagreJournalAction } from "@/app/journal/actions";
 import type { ActionResultat } from "@/lib/actions";
 import { SkjemaFelt } from "./skjema/SkjemaFelt";
@@ -47,11 +47,16 @@ export function JournalSkjema({
   // Etter vellykket lagring nullstiller React 19 de ukontrollerte
   // feltene til default – synk vurderingen til fokusdagens lagrede verdi
   // (oppdatert via revalidatePath) så radioene ikke henger igjen.
-  useEffect(() => {
+  // «Adjust state during render»-mønsteret, ikke effect: både nytt
+  // resultat (ok rett etter lagring) og nytt forhåndsvalg (når serverens
+  // reviderte verdi ankommer) skal re-synke.
+  const [forrige, setForrige] = useState({ resultat, forhaandsvalg });
+  if (resultat !== forrige.resultat || forhaandsvalg !== forrige.forhaandsvalg) {
+    setForrige({ resultat, forhaandsvalg });
     if (resultat?.ok) {
       setValgtVurdering(forhaandsvalg);
     }
-  }, [resultat, forhaandsvalg]);
+  }
 
   return (
     <form
