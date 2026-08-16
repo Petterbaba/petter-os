@@ -38,3 +38,25 @@ export function formatMndKort(isoDato: string): string {
     .format(new Date(isoDato))
     .replace(".", "");
 }
+
+// «14. aug» – kompakt dato for listerader.
+export function formatDatoKort(isoDato: string): string {
+  return new Intl.DateTimeFormat("nb-NO", {
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC",
+  })
+    .format(new Date(isoDato))
+    .replace(/\.$/, "");
+}
+
+// «August 2026» – månedsoverskrift for tidsgrupperte lister (nb-NO gir
+// liten forbokstav; som frittstående overskrift skal den ha stor).
+export function formatMndAar(isoDato: string): string {
+  const tekst = new Intl.DateTimeFormat("nb-NO", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(isoDato));
+  return tekst.charAt(0).toUpperCase() + tekst.slice(1);
+}
