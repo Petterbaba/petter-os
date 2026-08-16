@@ -3,7 +3,7 @@
 > **Denne filen er midlertidig.** Når alle punktene under er gjennomført:
 > slett filen og commit slettingen (`git rm NESTE-STEG.md`). Veikartet
 > videre bor permanent i CLAUDE.md; driftsdokumentasjon i `docs/`.
-> Sist oppdatert: 9. august 2026 (journal-migrasjonen gjennomført).
+> Sist oppdatert: 16. august 2026 (journal levert og merget til main).
 
 ## Gjennomført 8. august
 
@@ -25,6 +25,10 @@
 - [ ] Dashboardet → Authentication → Sign In / Providers → klikk
       **Email**-raden → sett «Minimum password length» til 12
       (free tier-erstatningen for leaked password protection)
+- [ ] **Passord-sjekk etter 16. aug:** app-passordet ble nullstilt til et
+      midlertidig (glemt passord etter maskinbyttet). Bekreft at du har
+      satt ditt eget via `/innstillinger` og lagret det i passordmanageren
+      – det midlertidige står i en samtalelogg og skal ikke leve videre.
 
 ## Rutiner (gjelder alltid)
 
@@ -85,14 +89,26 @@ Tredje runde (samme branch): heatmap + samlet skjema + animert knapp.
 
 Gjenstår manuelt (Petter):
 
-- [ ] Test i appen: `npm run dev` → `/journal` → lagre en innførsel med
-      vurdering, rediger den, slett en innførsel (bekreftelsesdialog),
-      prøv å lagre ny på samme dag (skal avvises),
-      lagre en vurdering alene, sjekk heatmapet og `/dashbord`, og se at
-      lagre-animasjonen kjører. Sjekk også `/vaner`: heatmapet der deler
-      komponent med journalen og har fått samme løft (heldekkende bredde,
-      egne tooltips, stor forbokstav på etikettene).
-- [ ] PR fra `feat/journal`, «Create a merge commit», rydd branchen.
+- [x] Testet i appen (ekte innførsler skrevet 5.–16. aug, redigering,
+      sletting og dagsvurdering brukt i praksis)
+- [x] PR #3 merget 16. aug, branchen ryddet lokalt og på GitHub
+
+## GJENNOMFØRT 16. august: journal fullført og merget
+
+- Prosjektet var auto-pauset (første gang – rutinen under stemmer);
+  vekket via MCP `restore_project`, oppe igjen på ~10 sek.
+- To lint-feil fra 9.-aug-arbeidet fikset (`react-hooks/set-state-in-effect`
+  i `JournalSkjema` og `LagreKnappAnimert`) – tredje gang denne regelen
+  slår til i prosjektet. Mønsteret som gjelder: «adjust state during
+  render» (eller `useSyncExternalStore` for klient-bare verdier), aldri
+  synkron setState i effect-kroppen.
+- Journallisten bygget om (PR #4): tidsgruppert med sticky
+  månedsoverskrifter, kompakte rader (dato + tittel + n/5) som utvides
+  med native `<details>` – nye datohjelpere `formatDatoKort`/`formatMndAar`
+  i `format.ts` (UTC-regelen fulgt).
+- Git-lærdom fra økten (commit havnet på feil side av en merge og måtte
+  cherry-pickes til ny gren): sjekk at PR-en faktisk er merget FØR
+  opprydding – kvitteringen er at `git pull` henter noe. Push ≠ merge.
 
 ## Neste utviklingsøkter (revidert prioritering)
 
