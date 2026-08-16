@@ -4,7 +4,7 @@ import { SideHeader } from "@/components/SideHeader";
 import { StyrkeModul } from "@/components/StyrkeModul";
 import { InvesteringModul } from "@/components/InvesteringModul";
 import { MetrikkModul } from "@/components/MetrikkModul";
-import { NotatModul } from "@/components/NotatModul";
+import { JournalModul } from "@/components/JournalModul";
 import { VaneModul } from "@/components/VaneModul";
 
 export const metadata: Metadata = {
@@ -28,7 +28,7 @@ export default async function Dashbord() {
         <StyrkeModul sisteOkt={data.sisteOkt} volumtrend={data.volumtrend} />
         <InvesteringModul kontoer={data.kontoer} portefolje={data.portefolje} />
         <MetrikkModul vekt={data.vekt} />
-        <NotatModul notater={data.notater} />
+        <JournalModul innforsler={data.journal} />
       </div>
     </main>
   );

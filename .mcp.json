@@ -1,0 +1,9 @@
+{
+  "_kommentar": "Supabase MCP. URL-en er bevisst uten ?project_ref= – den parameteren bryter OAuth-flyten (resource-validering). Scoping til petter-os (mexwxvntjcyinesoiyvw) håndheves av regel 0 i CLAUDE.md.",
+  "mcpServers": {
+    "supabase": {
+      "type": "http",
+      "url": "https://mcp.supabase.com/mcp"
+    }
+  }
+}

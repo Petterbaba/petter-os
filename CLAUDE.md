@@ -4,7 +4,7 @@
 
 Personlig dashbord («personal operating system») med Petter som primærbruker.
 Tracker styrketrening, investeringer, kroppsmetrikker, vaner og
-notater/refleksjoner. Repoet er OFFENTLIG (aldri hemmeligheter eller
+journal/refleksjoner. Repoet er OFFENTLIG (aldri hemmeligheter eller
 persondata i committede filer), og appen kan få noen få håndplukkede brukere
 til – anta flere brukere i design, aldri hardkodet «én bruker».
 Læringsprosjekt for stacken – gjør ting riktig, ikke bare raskt.
@@ -19,7 +19,8 @@ Driftsdokumentasjon («hvordan gjør jeg …») bor i wikien `docs/` – se
 
 - Next.js 16 (App Router; NB: `src/proxy.ts`, ikke middleware) + TypeScript +
   Tailwind CSS v4 (CSS-first config i `src/app/globals.css`)
-- Grafer: recharts. Vane-heatmapen er håndbygd CSS-grid.
+- Grafer: recharts. Heatmapene (vaner, journal) er håndbygd CSS-grid via
+  delt `HeatmapRutenett`.
 - Database: Supabase-prosjekt `petter-os` (ref `mexwxvntjcyinesoiyvw`),
   eu-north-1, free tier. NB: free tier auto-pauser etter ~1 ukes inaktivitet
   og har ingen automatiske backups (se Backup).
@@ -55,7 +56,7 @@ Driftsdokumentasjon («hvordan gjør jeg …») bor i wikien `docs/` – se
 - `src/lib/types.ts` – håndskrevne camelCase-domenetyper = UI-ets kontrakt.
   Komponenter kjenner KUN disse.
 - `src/lib/data/<domene>.ts` – én modul per domene (metrics, workouts,
-  investments, notes, habits); mapper DB-rad → domenetype. Bytte av datakilde
+  investments, journal, habits); mapper DB-rad → domenetype. Bytte av datakilde
   skjer kun her.
 - `src/lib/data/dashboard.ts` – komponerer `DashboardData` med `Promise.all`.
 - `src/lib/mock/<domene>.ts` – mock for domener som ikke er migrert ennå.
@@ -65,11 +66,16 @@ Driftsdokumentasjon («hvordan gjør jeg …») bor i wikien `docs/` – se
   datalaget, aldri av komponenter.
 - Undersider henter kun sitt eget domene (`/metrikker` → `getVekt()`);
   kun `/dashbord` bruker `getDashboardData()`.
-- Status: **metrics er live på Supabase**; workouts, investments, notes,
+- Status: **metrics og journal er live på Supabase**; workouts, investments,
   habits er fortsatt mock.
 
 ## Migrasjonsflyt (remote-first – absolutte regler)
 
+0. **KUN prosjektet `petter-os` (ref `mexwxvntjcyinesoiyvw`).** Alle
+   Supabase MCP-kall skal ha denne `project_id`. Rør aldri andre prosjekter
+   på kontoen, og bruk aldri kontonivå-verktøy som oppretter, pauser eller
+   sletter prosjekter. (MCP-serveren i `.mcp.json` kan ikke scopes via URL –
+   `?project_ref=` bryter OAuth-flyten – så denne regelen er håndhevingen.)
 1. SQL-fil skrives FØRST i `supabase/migrations/YYYYMMDDHHMMSS_slug.sql`
    (CLI-kompatibel navngiving).
 2. Appliseres via Supabase MCP `apply_migration` (aldri dashboard-SQL for
@@ -100,9 +106,11 @@ Driftsdokumentasjon («hvordan gjør jeg …») bor i wikien `docs/` – se
 - Avledede tall lagres aldri – bruk views (`weekly_volume`,
   `portfolio_history`, `daily_nutrition`) eller beregn i datalaget.
 - Metrics er LANG modell: `metric_types(key,label,unit)` +
-  `metric_entries(metric_key, measured_on, value)`. Ny kroppsmetrikk = én
-  INSERT i `metric_types`, ikke ny tabell. Presis validering (30–250 kg o.l.)
-  bor i server-actionen; DB håndhever kun generisk `value >= 0`.
+  `metric_entries(metric_key, measured_on, value)`. Ny metrikk = én
+  INSERT i `metric_types`, ikke ny tabell – gjelder også utover kropp
+  (journalens dagsvurdering er nøkkelen `day_rating`). Presis validering
+  (30–250 kg, 1–5 o.l.) bor i server-actionen; DB håndhever kun generisk
+  `value >= 0`.
 
 ## Input-mønster (server actions)
 
@@ -121,7 +129,10 @@ Driftsdokumentasjon («hvordan gjør jeg …») bor i wikien `docs/` – se
   `formatDato`/`formatMndKort` formaterer ISO-datostrenger i UTC (ellers
   vises datoer én dag feil vest for UTC).
 - Upsert-nøkkel for målinger: `(user_id, metric_key, measured_on)` – ny
-  lagring samme dag overskriver.
+  lagring samme dag overskriver. Journal upserter ALDRI: unik
+  `(user_id, written_on)` gjør at insert på opptatt dag gir 23505, som
+  oversettes til en «rediger i stedet»-melding; redigering oppdaterer
+  via id (tekst skal aldri overskrives stille).
 
 ## Backup (dataeierskap)
 
@@ -149,7 +160,7 @@ Driftsdokumentasjon («hvordan gjør jeg …») bor i wikien `docs/` – se
 ## Ruter
 
 `/` hjem (klokke + meny) · `/dashbord` alt samlet · `/vaner` heatmap + radar ·
-`/styrke` · `/investeringer` · `/metrikker` (vekt-input + kurve) · `/notater` ·
+`/styrke` · `/investeringer` · `/metrikker` (vekt-input + kurve) · `/journal` ·
 `/innstillinger` (konto/passordbytte) · `/logg-inn` (eneste uinnloggede side).
 Undersider bruker `SideHeader`.
 
@@ -159,7 +170,15 @@ Undersider bruker `SideHeader`.
    gjennomført); avkryssing på `/vaner`; ekte vaner erstatter mock-generatoren.
 3. **Trening:** `workouts`, `exercises` (normalisert), `workout_sets`,
    view `weekly_volume`; økt-logging på `/styrke` (revurder zod her).
-4. **Notater:** `notes(written_on, title, body)` + skjema.
+4. **Journal** (tidligere «notater» – navnet byttet aug. 2026, `notes` står
+   ledig til et evt. udatert notat-domene): `journal_entries(written_on,
+   title, body)` + skjema. Én innførsel per dag (unik `(user_id,
+   written_on)`); redigering via `/journal?rediger=<id>` (oppdatering
+   skjer via id, så datoflytting fungerer). Dagsvurdering 1–5 lagres som
+   metrikken `day_rating` – ingen egen tabell.
+   **GJENNOMFØRT aug. 2026** (migrasjoner `20260809063105_journal`,
+   `20260809070743_journal_one_entry_per_day`,
+   `20260809070802_day_rating_metric`).
 5. **Investeringer (transaksjonsmodell – brukerens valg):** `accounts`,
    `instruments`, `account_transactions`, `instrument_prices` (eksterne
    sluttkurser; kilde velges i fasen – Yahoo Finance har intet offisielt API),

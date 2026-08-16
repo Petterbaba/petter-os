@@ -40,11 +40,15 @@ export type Metric = {
   weightKg: number;
 };
 
-export type Note = {
+// Én datert refleksjon (speiler journal_entries-tabellen; maks én per dag).
+// `rating` er dagsvurderingen (1–5) fra metrics-nøkkelen 'day_rating',
+// flettet inn av datalaget – ikke en kolonne på journal_entries.
+export type JournalEntry = {
   id: string;
   date: string; // ISO 8601
   title: string;
   body: string;
+  rating?: number; // 1–5
 };
 
 export type Habit = {
@@ -70,7 +74,7 @@ export type DashboardData = {
   kontoer: Account[];
   portefolje: PortfolioPoint[];
   vekt: Metric[];
-  notater: Note[];
+  journal: JournalEntry[];
   vaner: Habit[];
   vaneOppforinger: HabitEntry[];
   vanePeriode: { fra: string; til: string };
