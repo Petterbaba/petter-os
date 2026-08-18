@@ -110,6 +110,19 @@ Gjenstår manuelt (Petter):
   cherry-pickes til ny gren): sjekk at PR-en faktisk er merget FØR
   opprydding – kvitteringen er at `git pull` henter noe. Push ≠ merge.
 
+## GJENNOMFØRT 16.–17. august: Reiser (Memory Bank fase 1)
+
+Fremskyndet forbi journal-editoren på eget ønske – og med kart fra dag én
+(ikke utsatt som planlagt). Migrasjon `20260816193703_trips`; klikkbart
+vendored verdenskart (CC BY-SA 3.0, ingen nye avhengigheter);
+registrering OG redigering i native <dialog> (kart-klikk = primærinngang,
+«Ny reise» = manuell); årsgruppert liste. Review-workflow fant og fikset
+4 reelle feil, bl.a. at 37 land i SVG-en er <g>-grupper (Norge inkludert
+– kartet hadde vært dødt for dem). Tredje skjema utløste delt
+datovalidering (`src/lib/validering.ts`). Detaljer i CLAUDE.md
+(«Reiser»-seksjonen). NB: committet direkte til main (bevisst unntak fra
+gren-regelen, alenearbeid + allerede reviewet).
+
 ## Neste utviklingsøkter (revidert prioritering)
 
 Habits (fase 2) er UTSATT – innholdet (hvilke vaner) er ikke avklart.
@@ -121,11 +134,9 @@ Modellen er triviell; den venter til vanene er bestemt.
    forhåndsvisning? autolagring av utkast?). NB: visningen bruker
    allerede `whitespace-pre-line`, så linjeskift bevares – editoren
    bygger videre på det.
-2. **Reiser** (`feat/reiser`) – start på Memory Bank: én tabell
-   `trips(title, country, city, started_on, ended_on, cost, rating, notes)`,
-   ny rute `/reiser` + menypunkt. Bevisst minimal – kart/årsrapport senere.
-3. **Vaner** – når innholdet er modent. Deretter veikartet i CLAUDE.md
-   (trening, investeringer, mat, eksport/herding).
+2. **Vaner** – når innholdet er modent. Deretter veikartet i CLAUDE.md
+   (trening, investeringer, mat, eksport/herding) – og Memory
+   Bank-utvidelser på reiser (trip_stops, årsrapport) når det frister.
 
 ## Ferdig?
 

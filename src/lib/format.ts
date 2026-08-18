@@ -50,6 +50,19 @@ export function formatDatoKort(isoDato: string): string {
     .replace(/\.$/, "");
 }
 
+// Norsk landnavn fra ISO 3166-1 alfa-2 («no» → «Norge»). Landnavn lagres
+// aldri i databasen – de avledes alltid herfra. of() kaster på ugyldige
+// koder, derfor try/catch med koden selv som nødløsning.
+const landVisning = new Intl.DisplayNames(["nb"], { type: "region" });
+
+export function landNavn(kode: string): string {
+  try {
+    return landVisning.of(kode.toUpperCase()) ?? kode.toUpperCase();
+  } catch {
+    return kode.toUpperCase();
+  }
+}
+
 // «August 2026» – månedsoverskrift for tidsgrupperte lister (nb-NO gir
 // liten forbokstav; som frittstående overskrift skal den ha stor).
 export function formatMndAar(isoDato: string): string {

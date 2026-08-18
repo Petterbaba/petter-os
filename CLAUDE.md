@@ -56,8 +56,8 @@ Driftsdokumentasjon («hvordan gjør jeg …») bor i wikien `docs/` – se
 - `src/lib/types.ts` – håndskrevne camelCase-domenetyper = UI-ets kontrakt.
   Komponenter kjenner KUN disse.
 - `src/lib/data/<domene>.ts` – én modul per domene (metrics, workouts,
-  investments, journal, habits); mapper DB-rad → domenetype. Bytte av datakilde
-  skjer kun her.
+  investments, journal, habits, trips); mapper DB-rad → domenetype. Bytte
+  av datakilde skjer kun her.
 - `src/lib/data/dashboard.ts` – komponerer `DashboardData` med `Promise.all`.
 - `src/lib/mock/<domene>.ts` – mock for domener som ikke er migrert ennå.
   Slettes per domene når det går live.
@@ -66,8 +66,10 @@ Driftsdokumentasjon («hvordan gjør jeg …») bor i wikien `docs/` – se
   datalaget, aldri av komponenter.
 - Undersider henter kun sitt eget domene (`/metrikker` → `getVekt()`);
   kun `/dashbord` bruker `getDashboardData()`.
-- Status: **metrics og journal er live på Supabase**; workouts, investments,
-  habits er fortsatt mock.
+- Status: **metrics, journal og reiser (trips) er live på Supabase**;
+  workouts, investments, habits er fortsatt mock.
+- Delt skjemavalidering: `src/lib/validering.ts` (`erGyldigIsoDato` –
+  rund-tur-sjekken alle actions bruker).
 
 ## Migrasjonsflyt (remote-first – absolutte regler)
 
@@ -161,8 +163,33 @@ Driftsdokumentasjon («hvordan gjør jeg …») bor i wikien `docs/` – se
 
 `/` hjem (klokke + meny) · `/dashbord` alt samlet · `/vaner` heatmap + radar ·
 `/styrke` · `/investeringer` · `/metrikker` (vekt-input + kurve) · `/journal` ·
-`/innstillinger` (konto/passordbytte) · `/logg-inn` (eneste uinnloggede side).
+`/reiser` (klikkbart kart + skjema + liste) · `/innstillinger`
+(konto/passordbytte) · `/logg-inn` (eneste uinnloggede side).
 Undersider bruker `SideHeader`.
+
+## Reiser (Memory Bank)
+
+- `trips`-tabellen: title, country_code (ISO 3166-1 alfa-2, SMÅ bokstaver),
+  city, started_on/ended_on, cost_nok, rating 1–5, companions, category
+  (ferie/helgetur/jobb/familiebesøk/annet), notes. Fremtidige datoer er
+  tillatt (planlagte turer). Landnavn og netter er avledet – aldri lagret;
+  landnavn via `landNavn()` i `format.ts` (`Intl.DisplayNames`, nb).
+- Verdenskartet er en vendored SVG (`src/lib/kart/verdenskart.svg`,
+  **CC BY-SA 3.0**, Al MacDonald/Fritz Lekschas – attribusjonen ligger i
+  SVG-ens `<desc>` og skal bli der). Path-id = ISO-kode; `src/lib/kart.ts`
+  leser/cacher og merker klasser server-side, `.reisekart`-CSS i globals
+  styler med heat-trappen. Klikk håndteres med event-delegering i
+  `ReiseUtforsker` (valgt land = delt tilstand for kart, skjema og liste).
+  NB: 37 land er `<g>`-grupper i SVG-en – all kart-CSS/JS må treffe både
+  `path.klasse` og `g.klasse path` (se .reisekart i globals).
+- Registrering og redigering skjer i samme native `<dialog>`: klikk på et
+  land åpner den med landet forhåndsvalgt (primærinngangen); «Ny reise»-
+  knappen åpner den for manuell registrering; «Rediger» i listen åpner den
+  forhåndsutfylt (skjult id-felt → oppdatering via id, journal-mønsteret;
+  ny key per mål). Dialogen lukkes med Esc, bakteppe-klikk, Avbryt eller
+  automatisk ~1,6 s etter vellykket lagring.
+- Fremtidige utvidelser (egne migrasjoner): `trip_stops` (flere stopp),
+  transport/overnatting, valuta, bildelenker.
 
 ## Veikart (fase 2–7)
 
@@ -179,6 +206,9 @@ Undersider bruker `SideHeader`.
    **GJENNOMFØRT aug. 2026** (migrasjoner `20260809063105_journal`,
    `20260809070743_journal_one_entry_per_day`,
    `20260809070802_day_rating_metric`).
+4b. **Reiser (Memory Bank – fremskyndet på brukerens ønske):** `trips` +
+   klikkbart verdenskart på `/reiser`. **GJENNOMFØRT aug. 2026**
+   (migrasjon `20260816193703_trips`; se egen seksjon over).
 5. **Investeringer (transaksjonsmodell – brukerens valg):** `accounts`,
    `instruments`, `account_transactions`, `instrument_prices` (eksterne
    sluttkurser; kilde velges i fasen – Yahoo Finance har intet offisielt API),

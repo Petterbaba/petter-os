@@ -30,6 +30,48 @@ html {
   color-scheme: dark;
 }
 
+/* Reisekartet: vendored verdenskart-SVG (CC BY-SA 3.0) injiseres som HTML;
+   klassene settes server-side (klikkbar/besokt) og klient-side (valgt).
+   Fargene følger heat-trappen – samme skala som heatmapene. */
+.reisekart svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+/* NB: 37 land i SVG-en er <g id="xx">-grupper med id-løse barne-paths
+   (bl.a. no, se, dk, us, gb, fr), resten er <path id="xx"> – derfor må
+   hver regel treffe både path-med-klasse og paths inni g-med-klasse.
+   Hover ligger på g-en så hele landet (alle øyene) lyser samlet. */
+.reisekart path {
+  fill: var(--color-heat-0);
+  stroke: var(--color-bg);
+  stroke-width: 0.5;
+}
+.reisekart :is(path.klikkbar, g.klikkbar) {
+  cursor: pointer;
+}
+.reisekart :is(path.klikkbar, g.klikkbar path) {
+  transition: fill 150ms;
+}
+.reisekart :is(path.klikkbar:hover, g.klikkbar:hover path) {
+  fill: var(--color-heat-1);
+}
+.reisekart :is(path.besokt, g.besokt path) {
+  fill: var(--color-heat-3);
+}
+.reisekart :is(path.besokt:hover, g.besokt:hover path) {
+  fill: var(--color-heat-4);
+}
+.reisekart :is(path.valgt, g.valgt path) {
+  stroke: var(--color-accent);
+  stroke-width: 1.2;
+}
+@media (prefers-reduced-motion: reduce) {
+  .reisekart :is(path.klikkbar, g.klikkbar path) {
+    transition: none;
+  }
+}
+
 
 body {
   background: var(--color-bg);

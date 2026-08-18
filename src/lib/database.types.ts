@@ -111,6 +111,57 @@ export type Database = {
         }
         Relationships: []
       }
+      trips: {
+        Row: {
+          category: string | null
+          city: string | null
+          companions: string | null
+          cost_nok: number | null
+          country_code: string
+          created_at: string
+          ended_on: string
+          id: string
+          notes: string | null
+          rating: number | null
+          started_on: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category?: string | null
+          city?: string | null
+          companions?: string | null
+          cost_nok?: number | null
+          country_code: string
+          created_at?: string
+          ended_on: string
+          id?: string
+          notes?: string | null
+          rating?: number | null
+          started_on: string
+          title: string
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          category?: string | null
+          city?: string | null
+          companions?: string | null
+          cost_nok?: number | null
+          country_code?: string
+          created_at?: string
+          ended_on?: string
+          id?: string
+          notes?: string | null
+          rating?: number | null
+          started_on?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

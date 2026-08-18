@@ -31,7 +31,10 @@ export function JournalListe({ innforsler }: { innforsler: JournalEntry[] }) {
   }
 
   return (
-    <section className="divide-y divide-edge overflow-hidden rounded-xl border border-edge bg-card">
+    // overflow-clip, ikke -hidden: hidden gjør seksjonen til scroll-
+    // container og dreper sticky-overskriftene; clip klipper hjørnene
+    // uten den bivirkningen.
+    <section className="divide-y divide-edge overflow-clip rounded-xl border border-edge bg-card">
       {grupper.map((gruppe) => (
         <Fragment key={gruppe.mnd}>
           <h3 className="sticky top-0 z-10 bg-card px-4 py-2.5 text-sm font-medium text-ink sm:px-5">

@@ -51,6 +51,33 @@ export type JournalEntry = {
   rating?: number; // 1–5
 };
 
+export const REISE_KATEGORIER = [
+  "ferie",
+  "helgetur",
+  "jobb",
+  "familiebesøk",
+  "annet",
+] as const;
+
+export type ReiseKategori = (typeof REISE_KATEGORIER)[number];
+
+// Én reise (speiler trips-tabellen). Landet er ISO 3166-1 alfa-2 i små
+// bokstaver (matcher verdenskart-SVG-ens id-er); landnavn og antall netter
+// er avledet (formatNavn/landNavn hhv. datoene) og lagres aldri.
+export type Trip = {
+  id: string;
+  title: string;
+  countryCode: string;
+  city: string | null;
+  startedOn: string; // ISO 8601
+  endedOn: string; // ISO 8601
+  costNok: number | null;
+  rating: number | null; // 1–5
+  companions: string | null;
+  category: ReiseKategori | null;
+  notes: string | null;
+};
+
 export type Habit = {
   id: string;
   name: string;

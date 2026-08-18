@@ -9,6 +9,7 @@ import {
   slettJournalInnforsel,
 } from "@/lib/data/journal";
 import { iDagOslo } from "@/lib/dato";
+import { erGyldigIsoDato } from "@/lib/validering";
 import type { ActionResultat } from "@/lib/actions";
 
 // DB håndhever kun ikke-tomme tekster; presise grenser bor her.
@@ -19,17 +20,10 @@ const MAKS_VURDERING = 5;
 const UUID_MONSTER =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// Rund-tur-validering: Date.parse ruller over umulige kalenderdatoer
-// (Date.parse("2026-02-31") = 3. mars), så parse og reformater må gi
-// tilbake nøyaktig samme streng. Returnerer feilmelding, eller null når
-// datoen er gyldig og ikke frem i tid.
+// Returnerer feilmelding, eller null når datoen er gyldig og ikke frem
+// i tid (rund-tur-sjekken bor i den delte erGyldigIsoDato).
 function validerDato(dato: string): string | null {
-  const parset = new Date(`${dato}T00:00:00Z`);
-  if (
-    !/^\d{4}-\d{2}-\d{2}$/.test(dato) ||
-    Number.isNaN(parset.getTime()) ||
-    parset.toISOString().slice(0, 10) !== dato
-  ) {
+  if (!erGyldigIsoDato(dato)) {
     return "Ugyldig dato.";
   }
   if (dato > iDagOslo()) {

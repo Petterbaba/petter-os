@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { lagreVekt } from "@/lib/data/metrics";
 import { iDagOslo } from "@/lib/dato";
+import { erGyldigIsoDato } from "@/lib/validering";
 import type { ActionResultat } from "@/lib/actions";
 
 const MIN_KG = 30;
@@ -20,15 +21,8 @@ export async function lagreVektAction(
   // (React 19 nullstiller feltene når actionen fullfører).
   const verdier = { dato: datoRaa, vekt: vektInput };
 
-  // Rund-tur-validering: Date.parse ruller over umulige kalenderdatoer
-  // (Date.parse("2026-02-31") = 3. mars), så parse og reformater må gi
-  // tilbake nøyaktig samme streng.
-  const parset = new Date(`${datoRaa}T00:00:00Z`);
-  if (
-    !/^\d{4}-\d{2}-\d{2}$/.test(datoRaa) ||
-    Number.isNaN(parset.getTime()) ||
-    parset.toISOString().slice(0, 10) !== datoRaa
-  ) {
+  // Rund-tur-sjekken bor i den delte erGyldigIsoDato (lib/validering).
+  if (!erGyldigIsoDato(datoRaa)) {
     return { ok: false, melding: "Ugyldig dato.", verdier };
   }
   if (datoRaa > iDagOslo()) {
