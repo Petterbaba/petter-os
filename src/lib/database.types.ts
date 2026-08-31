@@ -15,10 +15,119 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.15"
+    PostgrestVersion: "14.17"
   }
   public: {
     Tables: {
+      goal_entries: {
+        Row: {
+          created_at: string
+          goal_id: string
+          id: string
+          logged_on: string
+          note: string | null
+          updated_at: string
+          user_id: string
+          value: number
+        }
+        Insert: {
+          created_at?: string
+          goal_id: string
+          id?: string
+          logged_on: string
+          note?: string | null
+          updated_at?: string
+          user_id?: string
+          value: number
+        }
+        Update: {
+          created_at?: string
+          goal_id?: string
+          id?: string
+          logged_on?: string
+          note?: string | null
+          updated_at?: string
+          user_id?: string
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "goal_entries_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "goals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      goals: {
+        Row: {
+          count_source: string | null
+          created_at: string
+          due_on: string | null
+          id: string
+          kind: string
+          metric_key: string | null
+          misogi_year: number | null
+          motivation: string | null
+          outcome: string | null
+          reflection: string | null
+          starts_on: string | null
+          target_direction: string | null
+          target_value: number | null
+          title: string
+          unit: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          count_source?: string | null
+          created_at?: string
+          due_on?: string | null
+          id?: string
+          kind: string
+          metric_key?: string | null
+          misogi_year?: number | null
+          motivation?: string | null
+          outcome?: string | null
+          reflection?: string | null
+          starts_on?: string | null
+          target_direction?: string | null
+          target_value?: number | null
+          title: string
+          unit?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          count_source?: string | null
+          created_at?: string
+          due_on?: string | null
+          id?: string
+          kind?: string
+          metric_key?: string | null
+          misogi_year?: number | null
+          motivation?: string | null
+          outcome?: string | null
+          reflection?: string | null
+          starts_on?: string | null
+          target_direction?: string | null
+          target_value?: number | null
+          title?: string
+          unit?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "goals_metric_key_fkey"
+            columns: ["metric_key"]
+            isOneToOne: false
+            referencedRelation: "metric_types"
+            referencedColumns: ["key"]
+          },
+        ]
+      }
       journal_entries: {
         Row: {
           body: string

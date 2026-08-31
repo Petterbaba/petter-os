@@ -56,8 +56,8 @@ Driftsdokumentasjon («hvordan gjør jeg …») bor i wikien `docs/` – se
 - `src/lib/types.ts` – håndskrevne camelCase-domenetyper = UI-ets kontrakt.
   Komponenter kjenner KUN disse.
 - `src/lib/data/<domene>.ts` – én modul per domene (metrics, workouts,
-  investments, journal, habits, trips); mapper DB-rad → domenetype. Bytte
-  av datakilde skjer kun her.
+  investments, journal, habits, trips, goals); mapper DB-rad → domenetype.
+  Bytte av datakilde skjer kun her.
 - `src/lib/data/dashboard.ts` – komponerer `DashboardData` med `Promise.all`.
 - `src/lib/mock/<domene>.ts` – mock for domener som ikke er migrert ennå.
   Slettes per domene når det går live.
@@ -66,10 +66,12 @@ Driftsdokumentasjon («hvordan gjør jeg …») bor i wikien `docs/` – se
   datalaget, aldri av komponenter.
 - Undersider henter kun sitt eget domene (`/metrikker` → `getVekt()`);
   kun `/dashbord` bruker `getDashboardData()`.
-- Status: **metrics, journal og reiser (trips) er live på Supabase**;
-  workouts, investments, habits er fortsatt mock.
+- Status: **metrics, journal, reiser (trips) og mål (goals) er live på
+  Supabase**; workouts, investments, habits er fortsatt mock.
 - Delt skjemavalidering: `src/lib/validering.ts` (`erGyldigIsoDato` –
-  rund-tur-sjekken alle actions bruker).
+  rund-tur-sjekken alle actions bruker – og `parseNorskTall` – norsk
+  komma/tusenskille; mål-skjemaet ble tredje konsument og utløste
+  abstraksjonen).
 
 ## Migrasjonsflyt (remote-first – absolutte regler)
 
@@ -162,10 +164,10 @@ Driftsdokumentasjon («hvordan gjør jeg …») bor i wikien `docs/` – se
 ## Ruter
 
 `/` hjem (klokke + meny) · `/dashbord` alt samlet · `/vaner` heatmap + radar ·
-`/styrke` · `/investeringer` · `/metrikker` (vekt-input + kurve) · `/journal` ·
-`/reiser` (klikkbart kart + skjema + liste) · `/innstillinger`
-(konto/passordbytte) · `/logg-inn` (eneste uinnloggede side).
-Undersider bruker `SideHeader`.
+`/maal` (misogi-kort + fremdriftsmål) · `/styrke` · `/investeringer` ·
+`/metrikker` (vekt-input + kurve) · `/journal` · `/reiser` (klikkbart kart +
+skjema + liste) · `/innstillinger` (konto/passordbytte) · `/logg-inn` (eneste
+uinnloggede side). Undersider bruker `SideHeader`.
 
 ## Reiser (Memory Bank)
 
@@ -191,6 +193,43 @@ Undersider bruker `SideHeader`.
 - Fremtidige utvidelser (egne migrasjoner): `trip_stops` (flere stopp),
   transport/overnatting, valuta, bildelenker.
 
+## Mål (misogi + fremdriftsmål)
+
+- `goals`-tabellen huser to slag (`kind`): **misogi** – ett årsdefinerende
+  mål per år (Marcus Elliott / Michael Easter: ~50 % sjanse for å feile, kan
+  ikke dø; et ærlig forsøk hedres) med `misogi_year`, `outcome`
+  (planlagt/forsøkt/fullført) og `reflection` i stedet for tallfremdrift –
+  og **maal** – fremdriftsmål med `target_value`, `starts_on`/`due_on`.
+  Én misogi per år håndheves av delvis unik indeks `(user_id, misogi_year)`;
+  23505 → «rediger i stedet» (journal-mønsteret). Utfall/refleksjon settes
+  KUN via egen action (`settMisogiUtfall`) så redigering aldri overskriver
+  dem stille.
+- **Sporingsmodus avledes av kolonnene** (ingen mode-kolonne): `metric_key`
+  satt → fremdrift = siste måling i `metric_entries` t.o.m. fristen
+  (målinger etter `due_on` rører aldri et utløpt mål; baseline = nyeste
+  måling FØR `starts_on`); `count_source` satt (journal/reiser/land) →
+  telling i `journal_entries`/`trips` innenfor perioden og aldri frem i
+  tid – planlagte reiser teller først fra startdato («land» = distinkte
+  nye landkoder); ellers manuell → sum av `goal_entries` i perioden
+  (innslag utenfor perioden avvises ved skriving; modusbytte bort fra
+  manuell blokkeres når loggede innslag finnes).
+  Fremdrift lagres ALDRI – alt avledes i `src/lib/data/goals.ts`; ren
+  fremdriftsmatematikk (andel, pacing `forventetAndel`, `erIRute`) bor i
+  `src/lib/maal.ts` (vaner-presedensen). Ny metrikk å måle mot = én INSERT
+  i `metric_types`, null kodeendring.
+- **Ingen gjentakelse** (brukerens valg aug. 2026): «20 000 kr/kvartal»
+  modelleres som årsmål («80 000 kr i år») der «i rute»-pacingen viser
+  rytmen; daglige mål hører til vaner (fase 2). Fremtidige datoer tillatt
+  (mål peker fremover); fremdrifts-innslag kan ikke logges frem i tid.
+- UI: `MaalUtforsker` eier én native `<dialog>` med fire skjema (mål,
+  misogi, utfall, logg fremdrift – reise-mønsteret, ny key per mål);
+  `MisogiKort` (hero + historikk + konsept-tom-tilstand), `MaalListe`
+  (Aktive/Fullførte/Utløpte med `<details>`-rader), delt `FremdriftsBar`,
+  `MaalModul` på dashbordet. Eksempelmål er kun UI-copy – aldri seedet.
+- Fremtidige utvidelser (egne migrasjoner): `archived_at` («gi opp uten å
+  slette»), period-felt for gjentakelse, workouts/investerings-kilder når
+  fase 3/5 lander.
+
 ## Veikart (fase 2–7)
 
 2. **Vaner:** `habits` + `habit_entries` (PK `(habit_id, done_on)`, rad =
@@ -209,6 +248,9 @@ Undersider bruker `SideHeader`.
 4b. **Reiser (Memory Bank – fremskyndet på brukerens ønske):** `trips` +
    klikkbart verdenskart på `/reiser`. **GJENNOMFØRT aug. 2026**
    (migrasjon `20260816193703_trips`; se egen seksjon over).
+4c. **Mål (misogi + fremdriftsmål – fremskyndet på brukerens ønske):**
+   `goals` + `goal_entries` på `/maal`; se egen seksjon over.
+   **GJENNOMFØRT aug. 2026** (migrasjon `20260826093446_goals`).
 5. **Investeringer (transaksjonsmodell – brukerens valg):** `accounts`,
    `instruments`, `account_transactions`, `instrument_prices` (eksterne
    sluttkurser; kilde velges i fasen – Yahoo Finance har intet offisielt API),

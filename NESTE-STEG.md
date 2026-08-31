@@ -3,7 +3,7 @@
 > **Denne filen er midlertidig.** Når alle punktene under er gjennomført:
 > slett filen og commit slettingen (`git rm NESTE-STEG.md`). Veikartet
 > videre bor permanent i CLAUDE.md; driftsdokumentasjon i `docs/`.
-> Sist oppdatert: 16. august 2026 (journal levert og merget til main).
+> Sist oppdatert: 27. august 2026 (mål-modulen levert, ikke committet).
 
 ## Gjennomført 8. august
 
@@ -123,18 +123,66 @@ datovalidering (`src/lib/validering.ts`). Detaljer i CLAUDE.md
 («Reiser»-seksjonen). NB: committet direkte til main (bevisst unntak fra
 gren-regelen, alenearbeid + allerede reviewet).
 
+## GJENNOMFØRT 26.–27. august: Mål (misogi + fremdriftsmål, fase 4c)
+
+Fremskyndet på eget ønske. Migrasjon `20260826093446_goals` (goals +
+goal_entries; RLS-malen + eierskaps-sjekk på innslag-insert); advisors
+grønn; `database.types.ts` regenerert. Detaljer i CLAUDE.md
+(«Mål»-seksjonen).
+
+- Misogi: ett årsdefinerende mål per år (delvis unik indeks; skjemaet
+  tilbyr kun ledige år). Utfall planlagt/forsøkt/fullført + refleksjon
+  settes via egen action – «forsøkt» hedres, redigering rører dem aldri.
+- Tre sporingsmoduser avledet av kolonnene: manuell (sum av innslag),
+  metrikk-lenket (vekt m.m.) og telle-lenket (journal/reiser/nye land).
+  Fremdrift lagres aldri; pacing («i rute») i `src/lib/maal.ts`.
+- `/maal` (MisogiKort + MaalListe + dialog med fire skjema), MaalModul på
+  dashbordet, menypunkt; «mål» i vane-copyen omdøpt (betyr nå kun domenet).
+- `parseNorskTall` trukket ut til `validering.ts` (tredje konsument) og
+  lærte punktum-tusenskille («80.000» ble tolket som 80 før).
+- Review (10 vinkler): 8 reelle feil funnet og fikset – bl.a. planlagte
+  fremtidige reiser som talte som fremdrift, målinger etter fristen som
+  kunne av-fullføre utløpte mål, og baseline på feil side av startdatoen.
+- Kjente utsatte punkter: duplisert mønsterkode (delte hooks, felles
+  slett-knapp, statustriage – ta med `/simplify` på committet tilstand)
+  og 1000-raders-taket i avledningen (flyttes til DB-telling FØR
+  datamengdene vokser, senest i fase 7).
+
+Gjenstår manuelt (Petter):
+
+- [ ] Fullfør testløypa (særlig metrikk- og telle-mål mot ekte data)
+- [ ] Commit: gren-regelen sier `feat/maal` + PR; trips-presedensen
+      (alenearbeid + allerede reviewet → rett til main) er også gyldig –
+      velg og noter valget
+- [ ] `npm run backup` (ukesrutinen; goals-migrasjonen laget kun nye
+      tabeller, så den gikk uten – ta den nå som ukesbackup)
+
 ## Neste utviklingsøkter (revidert prioritering)
 
 Habits (fase 2) er UTSATT – innholdet (hvilke vaner) er ikke avklart.
 Modellen er triviell; den venter til vanene er bestemt.
 
-1. **Journal-editor** (`feat/journal-editor`) – notert 9. aug: dagens
+0. **Mat: ukesplanlegger med Oda-data** (`feat/mat`) – besluttet 31. aug,
+   startes i EGEN økt: fase 6 (mat) fremskyndes som ukesplanlegger, og
+   Petter har funnet at Oda har et API. Første steg i økten: undersøk
+   API-et (offisielt/uoffisielt? auth? vilkår?) og design domenet etter
+   Hardcover-prinsippet – importer FAKTA til egne tabeller (dataeierskap),
+   aldri lene seg på tredjepart i lesebanen. Bøker fase 1 (under) rykker
+   ned, Hardcover-token fortsatt ikke ordnet.
+1. **Bøker + Hardcover-synk** (`feat/boker`) – avtalt 26. aug: egen
+   `books`-tabell (dataeierskap – Hardcover er kilde, ikke fasit),
+   «Synk fra Hardcover»-server action (GraphQL, `HARDCOVER_API_TOKEN`
+   kun i `.env.local`), og `count_source 'bøker'` i mål-modellen →
+   «Les 12 bøker i år» blir helautomatisk. Importer FAKTA (leste bøker),
+   aldri Hardcovers goals-objekter. Petter først: opprett
+   Hardcover-bruker, importer fra Goodreads, hent API-token.
+2. **Journal-editor** (`feat/journal-editor`) – notert 9. aug: dagens
    rene `<textarea>` skal erstattes av en ordentlig skriveopplevelse på
    `/journal`. Ambisjonsnivå avklares når økten starter (markdown?
    forhåndsvisning? autolagring av utkast?). NB: visningen bruker
    allerede `whitespace-pre-line`, så linjeskift bevares – editoren
    bygger videre på det.
-2. **Vaner** – når innholdet er modent. Deretter veikartet i CLAUDE.md
+3. **Vaner** – når innholdet er modent. Deretter veikartet i CLAUDE.md
    (trening, investeringer, mat, eksport/herding) – og Memory
    Bank-utvidelser på reiser (trip_stops, årsrapport) når det frister.
 

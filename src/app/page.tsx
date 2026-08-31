@@ -5,7 +5,8 @@ import { SkriveLogo } from "@/components/SkriveLogo";
 
 const meny = [
   { href: "/dashbord", navn: "Dashbord", beskrivelse: "alt på ett brett" },
-  { href: "/vaner", navn: "Vaner", beskrivelse: "måloppnåelse per dag" },
+  { href: "/vaner", navn: "Vaner", beskrivelse: "gjennomførte vaner per dag" },
+  { href: "/maal", navn: "Mål", beskrivelse: "misogi og fremdrift" },
   { href: "/styrke", navn: "Styrke", beskrivelse: "siste økt og volum" },
   { href: "/investeringer", navn: "Investeringer", beskrivelse: "portefølje" },
   { href: "/metrikker", navn: "Metrikker", beskrivelse: "vektkurve" },

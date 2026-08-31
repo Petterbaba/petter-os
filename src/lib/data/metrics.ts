@@ -1,4 +1,4 @@
-import type { Metric } from "@/lib/types";
+import type { Metric, MetrikkType } from "@/lib/types";
 import { opprettServerKlient } from "@/lib/supabase/server";
 
 // Første domene på Supabase. RLS begrenser radene til innlogget bruker,
@@ -24,6 +24,26 @@ export async function getVekt(): Promise<Metric[]> {
   return (data ?? [])
     .reverse()
     .map((rad) => ({ date: rad.measured_on, weightKg: rad.value }));
+}
+
+// Metrikk-katalogen (felles for alle brukere): mål-skjemaet lister den som
+// valg, og mål-actionen validerer nøkler mot den.
+export async function getMetrikkTyper(): Promise<MetrikkType[]> {
+  const supabase = await opprettServerKlient();
+  const { data, error } = await supabase
+    .from("metric_types")
+    .select("key, label, unit")
+    .order("label");
+
+  if (error) {
+    throw new Error(`Kunne ikke hente metrikktyper: ${error.message}`);
+  }
+
+  return (data ?? []).map((rad) => ({
+    key: rad.key,
+    label: rad.label,
+    unit: rad.unit,
+  }));
 }
 
 // Upsert på (user_id, metric_key, measured_on): ny lagring samme dag

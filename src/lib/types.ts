@@ -78,6 +78,69 @@ export type Trip = {
   notes: string | null;
 };
 
+export const MAAL_TYPER = ["misogi", "maal"] as const;
+
+export type MaalType = (typeof MAAL_TYPER)[number];
+
+export const MAAL_RETNINGER = ["opp", "ned"] as const;
+
+export type MaalRetning = (typeof MAAL_RETNINGER)[number];
+
+export const MISOGI_UTFALL = ["planlagt", "forsøkt", "fullført"] as const;
+
+export type MisogiUtfall = (typeof MISOGI_UTFALL)[number];
+
+export const MAAL_KILDER = ["journal", "reiser", "land"] as const;
+
+export type MaalKilde = (typeof MAAL_KILDER)[number];
+
+// Ett mål (speiler goals-tabellen). Misogi (ett årsdefinerende mål per år)
+// har utfall i stedet for tallfremdrift. progressValue/baselineValue er
+// AVLEDET og flettes inn av datalaget (journal-rating-mønsteret):
+//   metricKey satt   → siste/utgangs-måling fra metric_entries
+//   countSource satt → telling i journal_entries/trips
+//   ellers           → sum av goal_entries (manuell logg)
+// unit for automatiske mål avledes også av datalaget (metric_types/kilden).
+export type Goal = {
+  id: string;
+  kind: MaalType;
+  title: string;
+  motivation: string | null;
+  misogiYear: number | null;
+  outcome: MisogiUtfall | null;
+  reflection: string | null;
+  startsOn: string | null; // ISO 8601
+  dueOn: string | null; // ISO 8601; misogi: planlagt dato
+  targetValue: number | null;
+  unit: string | null;
+  metricKey: string | null;
+  direction: MaalRetning | null;
+  countSource: MaalKilde | null;
+  progressValue: number | null; // avledet
+  baselineValue: number | null; // avledet (kun metrikk-lenkede)
+};
+
+// Ett manuelt fremdriftsinnslag (speiler goal_entries-tabellen).
+export type GoalEntry = {
+  id: string;
+  goalId: string;
+  loggedOn: string; // ISO 8601
+  value: number;
+  note: string | null;
+};
+
+export type MaalData = {
+  maal: Goal[];
+  logg: GoalEntry[];
+};
+
+// Én rad i metrikk-katalogen (speiler metric_types-tabellen).
+export type MetrikkType = {
+  key: string;
+  label: string;
+  unit: string;
+};
+
 export type Habit = {
   id: string;
   name: string;
@@ -102,6 +165,7 @@ export type DashboardData = {
   portefolje: PortfolioPoint[];
   vekt: Metric[];
   journal: JournalEntry[];
+  maal: Goal[];
   vaner: Habit[];
   vaneOppforinger: HabitEntry[];
   vanePeriode: { fra: string; til: string };
