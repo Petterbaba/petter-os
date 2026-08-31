@@ -34,7 +34,7 @@ export function VaneRadar({ vaner, oppforinger, periode }: VaneRadarProps) {
   return (
     <DashboardCard
       tittel="Kategorier"
-      undertekst={`Måloppnåelse siste ${antallDager} dager`}
+      undertekst={`Gjennomføring siste ${antallDager} dager`}
     >
       <ResponsiveContainer width="100%" height={280}>
         <RadarChart data={data} cx="50%" cy="50%" outerRadius="72%">

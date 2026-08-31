@@ -11,7 +11,7 @@ type VaneModulProps = {
   periode: { fra: string; til: string };
 };
 
-// 0 mål → tom; ellers fire trinn etter andel av alle vanene
+// 0 vaner → tom; ellers fire trinn etter andel av alle vanene
 // (med 6 vaner: 1–2 → 1, 3–4 → 2, 5 → 3, 6 → 4).
 function nivaa(antall: number, totalt: number): number {
   if (antall === 0) return 0;
@@ -30,7 +30,7 @@ export function VaneModul({ vaner, oppforinger, periode }: VaneModulProps) {
 
   const iDagAntall = antallPerDag.get(periode.til) ?? 0;
 
-  // Dager på rad (bakover fra i dag) med minst ett gjennomført mål.
+  // Dager på rad (bakover fra i dag) med minst én gjennomført vane.
   const dager = dagerIPeriode(periode.fra, periode.til);
   let rekke = 0;
   for (let i = dager.length - 1; i >= 0; i--) {
@@ -48,7 +48,7 @@ export function VaneModul({ vaner, oppforinger, periode }: VaneModulProps) {
     <DashboardCard
       tittel="Vaner"
       hovedtall={`${iDagAntall} av ${vaner.length} i dag`}
-      undertekst={`${rekke} ${rekke === 1 ? "dag" : "dager"} på rad med minst ett mål`}
+      undertekst={`${rekke} ${rekke === 1 ? "dag" : "dager"} på rad med minst én vane`}
     >
       <HeatmapRutenett
         fra={periode.fra}
@@ -57,7 +57,7 @@ export function VaneModul({ vaner, oppforinger, periode }: VaneModulProps) {
         tooltipForDag={(dato) => (
           <>
             <span className="block whitespace-nowrap font-medium text-ink">
-              {antallPerDag.get(dato) ?? 0} av {vaner.length} mål
+              {antallPerDag.get(dato) ?? 0} av {vaner.length} vaner
             </span>
             <span className="mt-0.5 block whitespace-nowrap text-ink-3">
               {formatDato(dato)}

@@ -14,6 +14,17 @@ export function formatKg(verdi: number): string {
   return `${tallFormat.format(verdi)} kg`;
 }
 
+// Rent tall i norsk format («80 000», «82,4») – målfremdrift m.m.
+// To desimaler, ikke tallFormats éne: målverdier lagres som numeric(12,2),
+// og «11,99 av 12» skal aldri vises som «12 av 12» mens målet er uoppnådd.
+const desimalFormat = new Intl.NumberFormat("nb-NO", {
+  maximumFractionDigits: 2,
+});
+
+export function formatTall(verdi: number): string {
+  return desimalFormat.format(verdi);
+}
+
 // NB: "YYYY-MM-DD" parses som UTC-midnatt, så formatering må også skje i
 // UTC – ellers vises datoen én dag for tidlig for betraktere vest for UTC.
 export function formatDato(isoDato: string): string {

@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import { getDashboardData } from "@/lib/data/dashboard";
+import { iDagOslo } from "@/lib/dato";
 import { SideHeader } from "@/components/SideHeader";
 import { StyrkeModul } from "@/components/StyrkeModul";
 import { InvesteringModul } from "@/components/InvesteringModul";
 import { MetrikkModul } from "@/components/MetrikkModul";
 import { JournalModul } from "@/components/JournalModul";
 import { VaneModul } from "@/components/VaneModul";
+import { MaalModul } from "@/components/MaalModul";
 
 export const metadata: Metadata = {
   title: "Dashbord · petter-os",
@@ -25,6 +27,7 @@ export default async function Dashbord() {
             periode={data.vanePeriode}
           />
         </div>
+        <MaalModul maal={data.maal} iDag={iDagOslo()} />
         <StyrkeModul sisteOkt={data.sisteOkt} volumtrend={data.volumtrend} />
         <InvesteringModul kontoer={data.kontoer} portefolje={data.portefolje} />
         <MetrikkModul vekt={data.vekt} />

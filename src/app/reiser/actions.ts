@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { lagreReise, oppdaterReise, slettReise } from "@/lib/data/trips";
 import { lesVerdenskart } from "@/lib/kart";
-import { erGyldigIsoDato } from "@/lib/validering";
+import { erGyldigIsoDato, parseNorskTall } from "@/lib/validering";
 import { REISE_KATEGORIER, type ReiseKategori } from "@/lib/types";
 import type { ActionResultat } from "@/lib/actions";
 
@@ -80,9 +80,8 @@ export async function lagreReiseAction(
 
   let kostnad: number | null = null;
   if (kostnadInput !== "") {
-    // Norsk komma godtas ("12 500,50" → 12500.5).
-    const tall = Number(kostnadInput.replace(/\s/g, "").replace(",", "."));
-    if (!Number.isFinite(tall) || tall < 0) {
+    const tall = parseNorskTall(kostnadInput);
+    if (tall === null || tall < 0) {
       return { ok: false, melding: "Kostnaden må være et tall.", verdier };
     }
     if (tall > MAKS_KOSTNAD) {
