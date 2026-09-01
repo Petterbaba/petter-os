@@ -141,6 +141,56 @@ export type MetrikkType = {
   unit: string;
 };
 
+// Én porsjonsvekt fra Matvaretabellen («stk» = 155 g) til gram-omregning.
+export type FoodPortion = {
+  name: string;
+  grams: number;
+};
+
+// Én matvare (speiler food_items-tabellen – DELT referansedata synket fra
+// Matvaretabellen, samme rader for alle brukere). Verdiene er per 100 g.
+export type FoodItem = {
+  id: string;
+  name: string;
+  kcalPer100g: number;
+  proteinPer100g: number | null;
+  fatPer100g: number | null;
+  carbsPer100g: number | null;
+  portions: FoodPortion[];
+};
+
+// Én ingrediensrad (speiler dinner_ingredients). `foodItem` flettes inn av
+// datalaget; raden teller i næringsberegningen kun når både foodItem og
+// amountGrams er satt («salt og pepper» står med bare label).
+export type DinnerIngredient = {
+  id: string;
+  label: string; // navnet slik oppskriften sier det
+  amountGrams: number | null;
+  position: number;
+  foodItem: FoodItem | null;
+};
+
+// Én middag i katalogen (speiler dinners-tabellen + ingrediensradene).
+// Næring per porsjon er AVLEDET (src/lib/ernaering.ts) og lagres aldri.
+export type Dinner = {
+  id: string;
+  title: string;
+  servings: number;
+  instructions: string | null;
+  notes: string | null;
+  odaRecipeId: string | null;
+  sourceUrl: string | null;
+  ingredients: DinnerIngredient[];
+};
+
+// Én planlagt middag (speiler dinner_plans; maks én per dag – ny lagring
+// samme dag overskriver via upsert-nøkkelen (user_id, planned_on)).
+export type DinnerPlan = {
+  id: string;
+  plannedOn: string; // ISO 8601
+  dinnerId: string;
+};
+
 export type Habit = {
   id: string;
   name: string;

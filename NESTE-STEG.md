@@ -163,12 +163,14 @@ Habits (fase 2) er UTSATT – innholdet (hvilke vaner) er ikke avklart.
 Modellen er triviell; den venter til vanene er bestemt.
 
 0. **Mat: ukesplanlegger med Oda-data** (`feat/mat`) – besluttet 31. aug,
-   startes i EGEN økt: fase 6 (mat) fremskyndes som ukesplanlegger, og
-   Petter har funnet at Oda har et API. Første steg i økten: undersøk
-   API-et (offisielt/uoffisielt? auth? vilkår?) og design domenet etter
-   Hardcover-prinsippet – importer FAKTA til egne tabeller (dataeierskap),
-   aldri lene seg på tredjepart i lesebanen. Bøker fase 1 (under) rykker
-   ned, Hardcover-token fortsatt ikke ordnet.
+   startes i EGEN økt. Forarbeidet er GJORT (31. aug, se **MAT-PLAN.md**):
+   API-er verifisert (Matvaretabellen offisiell næringskilde m/
+   porsjonsvekter; Oda-MCP uten næringsdata, brukes til import +
+   handlekurv), beslutninger tatt (middagene i egen DB, Oda-oppskrifter
+   som utgangspunkt importert som egne kopier – Hardcover-prinsippet) og
+   etappeplan + oppskrifts-inventar (36 retter) klart. Økten starter rett
+   på etappe 1 (migrasjon). Bøker fase 1 (under) rykker ned,
+   Hardcover-token fortsatt ikke ordnet.
 1. **Bøker + Hardcover-synk** (`feat/boker`) – avtalt 26. aug: egen
    `books`-tabell (dataeierskap – Hardcover er kilde, ikke fasit),
    «Synk fra Hardcover»-server action (GraphQL, `HARDCOVER_API_TOKEN`

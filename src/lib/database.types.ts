@@ -15,10 +15,180 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.17"
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
+      dinner_ingredients: {
+        Row: {
+          amount_grams: number | null
+          created_at: string
+          dinner_id: string
+          food_item_id: string | null
+          id: string
+          label: string
+          position: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount_grams?: number | null
+          created_at?: string
+          dinner_id: string
+          food_item_id?: string | null
+          id?: string
+          label: string
+          position?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          amount_grams?: number | null
+          created_at?: string
+          dinner_id?: string
+          food_item_id?: string | null
+          id?: string
+          label?: string
+          position?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dinner_ingredients_dinner_id_fkey"
+            columns: ["dinner_id"]
+            isOneToOne: false
+            referencedRelation: "dinners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dinner_ingredients_food_item_id_fkey"
+            columns: ["food_item_id"]
+            isOneToOne: false
+            referencedRelation: "food_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dinner_plans: {
+        Row: {
+          created_at: string
+          dinner_id: string
+          id: string
+          planned_on: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          dinner_id: string
+          id?: string
+          planned_on: string
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          dinner_id?: string
+          id?: string
+          planned_on?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dinner_plans_dinner_id_fkey"
+            columns: ["dinner_id"]
+            isOneToOne: false
+            referencedRelation: "dinners"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dinners: {
+        Row: {
+          archived_at: string | null
+          created_at: string
+          id: string
+          instructions: string | null
+          notes: string | null
+          oda_recipe_id: string | null
+          servings: number
+          source_url: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          archived_at?: string | null
+          created_at?: string
+          id?: string
+          instructions?: string | null
+          notes?: string | null
+          oda_recipe_id?: string | null
+          servings: number
+          source_url?: string | null
+          title: string
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          archived_at?: string | null
+          created_at?: string
+          id?: string
+          instructions?: string | null
+          notes?: string | null
+          oda_recipe_id?: string | null
+          servings?: number
+          source_url?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      food_items: {
+        Row: {
+          archived_at: string | null
+          carbs_per_100g: number | null
+          created_at: string
+          fat_per_100g: number | null
+          id: string
+          kcal_per_100g: number
+          name: string
+          portions: Json
+          protein_per_100g: number | null
+          source_id: string
+          updated_at: string
+        }
+        Insert: {
+          archived_at?: string | null
+          carbs_per_100g?: number | null
+          created_at?: string
+          fat_per_100g?: number | null
+          id?: string
+          kcal_per_100g: number
+          name: string
+          portions?: Json
+          protein_per_100g?: number | null
+          source_id: string
+          updated_at?: string
+        }
+        Update: {
+          archived_at?: string | null
+          carbs_per_100g?: number | null
+          created_at?: string
+          fat_per_100g?: number | null
+          id?: string
+          kcal_per_100g?: number
+          name?: string
+          portions?: Json
+          protein_per_100g?: number | null
+          source_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       goal_entries: {
         Row: {
           created_at: string
