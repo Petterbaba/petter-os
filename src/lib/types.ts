@@ -156,6 +156,7 @@ export type FoodItem = {
   proteinPer100g: number | null;
   fatPer100g: number | null;
   carbsPer100g: number | null;
+  fiberPer100g: number | null;
   portions: FoodPortion[];
 };
 

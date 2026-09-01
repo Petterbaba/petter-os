@@ -23,12 +23,12 @@ export class MiddagAlleredeImportert extends Error {
 }
 
 const MATVARE_KOLONNER =
-  "id, name, kcal_per_100g, protein_per_100g, fat_per_100g, carbs_per_100g, portions";
+  "id, name, kcal_per_100g, protein_per_100g, fat_per_100g, carbs_per_100g, fiber_per_100g, portions";
 
 // NB: må være ÉN bokstavelig streng – supabase-js parser select-strengen på
 // typenivå, og sammensetting («+»/template) kollapser typene til feil.
 const MIDDAG_KOLONNER =
-  "id, title, servings, instructions, notes, oda_recipe_id, source_url, dinner_ingredients(id, label, amount_grams, position, food_items(id, name, kcal_per_100g, protein_per_100g, fat_per_100g, carbs_per_100g, portions))";
+  "id, title, servings, instructions, notes, oda_recipe_id, source_url, dinner_ingredients(id, label, amount_grams, position, food_items(id, name, kcal_per_100g, protein_per_100g, fat_per_100g, carbs_per_100g, fiber_per_100g, portions))";
 
 type MatvareRad = {
   id: string;
@@ -37,6 +37,7 @@ type MatvareRad = {
   protein_per_100g: number | null;
   fat_per_100g: number | null;
   carbs_per_100g: number | null;
+  fiber_per_100g: number | null;
   portions: Json;
 };
 
@@ -69,6 +70,7 @@ function tilMatvare(rad: MatvareRad): FoodItem {
     proteinPer100g: rad.protein_per_100g,
     fatPer100g: rad.fat_per_100g,
     carbsPer100g: rad.carbs_per_100g,
+    fiberPer100g: rad.fiber_per_100g,
     portions: tilPorsjoner(rad.portions),
   };
 }

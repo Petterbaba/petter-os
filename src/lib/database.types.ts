@@ -153,6 +153,7 @@ export type Database = {
           carbs_per_100g: number | null
           created_at: string
           fat_per_100g: number | null
+          fiber_per_100g: number | null
           id: string
           kcal_per_100g: number
           name: string
@@ -166,6 +167,7 @@ export type Database = {
           carbs_per_100g?: number | null
           created_at?: string
           fat_per_100g?: number | null
+          fiber_per_100g?: number | null
           id?: string
           kcal_per_100g: number
           name: string
@@ -179,6 +181,7 @@ export type Database = {
           carbs_per_100g?: number | null
           created_at?: string
           fat_per_100g?: number | null
+          fiber_per_100g?: number | null
           id?: string
           kcal_per_100g?: number
           name?: string

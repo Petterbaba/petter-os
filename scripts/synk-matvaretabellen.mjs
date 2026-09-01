@@ -88,6 +88,7 @@ for (const food of foods) {
     protein: makro(food, "Protein"),
     fat: makro(food, "Fett"),
     carbs: makro(food, "Karbo"),
+    fiber: makro(food, "Fiber"),
     // Kun gram-porsjoner tas med (kilden bruker i praksis alltid gram).
     portions: food.portions
       .filter((p) => p.unit === "g" && typeof p.quantity === "number")
@@ -120,6 +121,7 @@ const deler = [
   protein   numeric,
   fat       numeric,
   carbs     numeric,
+  fiber     numeric,
   portions  jsonb not null
 ) on commit drop;`,
 ];
@@ -131,23 +133,25 @@ for (let i = 0; i < rader.length; i += BUNT) {
     .map(
       (r) =>
         `(${q(r.sourceId)}, ${q(r.name)}, ${r.kcal}, ${r.protein ?? "null"}, ` +
-        `${r.fat ?? "null"}, ${r.carbs ?? "null"}, ${q(JSON.stringify(r.portions))}::jsonb)`,
+        `${r.fat ?? "null"}, ${r.carbs ?? "null"}, ${r.fiber ?? "null"}, ` +
+        `${q(JSON.stringify(r.portions))}::jsonb)`,
     )
     .join(",\n");
   deler.push(
-    `insert into tmp_food_items (source_id, name, kcal, protein, fat, carbs, portions) values\n${verdier};`,
+    `insert into tmp_food_items (source_id, name, kcal, protein, fat, carbs, fiber, portions) values\n${verdier};`,
   );
 }
 
 deler.push(`insert into public.food_items
-  (source_id, name, kcal_per_100g, protein_per_100g, fat_per_100g, carbs_per_100g, portions)
-select source_id, name, kcal, protein, fat, carbs, portions from tmp_food_items
+  (source_id, name, kcal_per_100g, protein_per_100g, fat_per_100g, carbs_per_100g, fiber_per_100g, portions)
+select source_id, name, kcal, protein, fat, carbs, fiber, portions from tmp_food_items
 on conflict (source_id) do update set
   name             = excluded.name,
   kcal_per_100g    = excluded.kcal_per_100g,
   protein_per_100g = excluded.protein_per_100g,
   fat_per_100g     = excluded.fat_per_100g,
   carbs_per_100g   = excluded.carbs_per_100g,
+  fiber_per_100g   = excluded.fiber_per_100g,
   portions         = excluded.portions,
   archived_at      = null;`);
 

@@ -4,6 +4,10 @@
     "supabase": {
       "type": "http",
       "url": "https://mcp.supabase.com/mcp"
+    },
+    "oda": {
+      "type": "http",
+      "url": "https://oda.com/mcp"
     }
   }
 }

@@ -97,7 +97,7 @@ function MiddagRad({
                     Math.round(naering.proteinG),
                   )} g protein · ${formatTall(Math.round(naering.fatG))} g fett · ${formatTall(
                     Math.round(naering.carbsG),
-                  )} g karbo`
+                  )} g karbo · ${formatTall(Math.round(naering.fiberG))} g fiber`
             }
           />
           {dekning.talte < dekning.totalt && (

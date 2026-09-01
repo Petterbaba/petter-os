@@ -11,6 +11,7 @@ export type Naering = {
   proteinG: number;
   fatG: number;
   carbsG: number;
+  fiberG: number;
 };
 
 // Hvor mye av oppskriften tallene dekker: en ingrediens teller kun når den
@@ -37,7 +38,7 @@ export function naeringsDekning(middag: Dinner): NaeringsDekning {
 // regnes som 0; kcal er alltid satt for matvarer i katalogen.
 export function naeringForMiddag(middag: Dinner): Naering | null {
   let noenTalte = false;
-  const sum: Naering = { kcal: 0, proteinG: 0, fatG: 0, carbsG: 0 };
+  const sum: Naering = { kcal: 0, proteinG: 0, fatG: 0, carbsG: 0, fiberG: 0 };
 
   for (const rad of middag.ingredients) {
     if (rad.foodItem === null || rad.amountGrams === null) {
@@ -49,6 +50,7 @@ export function naeringForMiddag(middag: Dinner): Naering | null {
     sum.proteinG += andel * (rad.foodItem.proteinPer100g ?? 0);
     sum.fatG += andel * (rad.foodItem.fatPer100g ?? 0);
     sum.carbsG += andel * (rad.foodItem.carbsPer100g ?? 0);
+    sum.fiberG += andel * (rad.foodItem.fiberPer100g ?? 0);
   }
 
   return noenTalte ? sum : null;
@@ -65,6 +67,7 @@ export function naeringPerPorsjon(middag: Dinner): Naering | null {
     proteinG: total.proteinG / middag.servings,
     fatG: total.fatG / middag.servings,
     carbsG: total.carbsG / middag.servings,
+    fiberG: total.fiberG / middag.servings,
   };
 }
 

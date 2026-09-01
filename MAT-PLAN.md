@@ -56,15 +56,21 @@ konvertering til gram trenger pakkestørrelser fra produkt-API-et.
    naeringsDekning, aggregerHandleliste) og synkscript
    `scripts/synk-matvaretabellen.mjs` (`npm run synk:mat`; `--dry-run`
    verifisert mot ekte API 1. sep: 2118 matvarer, 3 vitamintilskudd
-   uten kcal hoppes over). **GJENSTÅR: selve synk-kjøringen** – krever
-   `SUPABASE_DB_URL` i .env.local og psql (`brew install libpq`), begge
-   mangler på maskinen (backup.sh har dermed heller aldri kjørt her;
-   fiks samtidig).
+   uten kcal hoppes over). **SYNK KJØRT 1. sep 2026** (Windows-maskinen):
+   PostgreSQL 17-bin lagt i PATH, 2118 aktive rader i `food_items`
+   verifisert mot databasen. `npm run backup` kjørt samme kveld
+   (første gang på denne maskinen). **Fiber lagt til 1. sep 2026**
+   (brukerønske): migrasjon `20260901193637_food_items_fiber`
+   (`fiber_per_100g`), synkscriptet henter `Fiber`-constituenten,
+   synken kjørt på nytt (2118/2118 med fibertall), `fiberG` i
+   `Naering` og vises i middagslistens per porsjon-linje.
 3. **Import av middager**: skjer i Claude-økt via Oda-MCP (inventaret
    under) + vanlig skjema i appen (dialog-mønsteret fra reiser/mål) for
    retter utenfra. Ingredienser mappes mot `food_items`; Petter
-   godkjenner underveis. **GJENSTÅR – krever at synken (etappe 2) er
-   kjørt først.**
+   godkjenner underveis. **GJENSTÅR** (synken er kjørt, så veien er
+   åpen). Oda-MCP er lagt inn i `.mcp.json` 1. sep 2026 (endepunkt
+   `https://oda.com/mcp`, http-type) – krever restart av Claude
+   Code-økten + OAuth-godkjenning første gang.
 4. **UI `/mat`**: **GJENNOMFØRT 1. sep 2026** – `UkesplanKort` (dag-
    selecter som lagrer ved endring, ukenavigasjon `?uke=`, ukens
    næringsbilde), `MatUtforsker`/`MiddagSkjema` (dialog; ingrediensrader
