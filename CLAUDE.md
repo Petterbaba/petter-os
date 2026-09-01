@@ -48,8 +48,8 @@ Driftsdokumentasjon («hvordan gjør jeg …») bor i wikien `docs/` – se
   (validerer token), aldri `getSession()`, i proxy/server.
 - Klient-fabrikk: `src/lib/supabase/server.ts`.
 - Nøkler: KUN publishable key i appen (`.env.local`, mal i `.env.example`).
-  `SUPABASE_DB_URL` (Session pooler) brukes kun av `scripts/backup.sh`.
-  Service role-nøkkelen brukes aldri.
+  `SUPABASE_DB_URL` (Session pooler) brukes kun av `scripts/backup.sh` og
+  `scripts/synk-matvaretabellen.mjs`. Service role-nøkkelen brukes aldri.
 
 ## Datalag (kontrakt/implementasjon-skille)
 
@@ -66,8 +66,8 @@ Driftsdokumentasjon («hvordan gjør jeg …») bor i wikien `docs/` – se
   datalaget, aldri av komponenter.
 - Undersider henter kun sitt eget domene (`/metrikker` → `getVekt()`);
   kun `/dashbord` bruker `getDashboardData()`.
-- Status: **metrics, journal, reiser (trips) og mål (goals) er live på
-  Supabase**; workouts, investments, habits er fortsatt mock.
+- Status: **metrics, journal, reiser (trips), mål (goals) og mat er live
+  på Supabase**; workouts, investments, habits er fortsatt mock.
 - Delt skjemavalidering: `src/lib/validering.ts` (`erGyldigIsoDato` –
   rund-tur-sjekken alle actions bruker – og `parseNorskTall` – norsk
   komma/tusenskille; mål-skjemaet ble tredje konsument og utløste
@@ -105,8 +105,8 @@ Driftsdokumentasjon («hvordan gjør jeg …») bor i wikien `docs/` – se
   sender aldri user_id – defaulten gjør jobben. **Ingen FK mot auth.users**
   (Supabase fraråder det; blokkerte brukersletting og gjorde backupen
   urestorerbar – se `20260805200000_metrics_drop_auth_fk.sql`).
-- Katalogtabeller (habits, accounts, exercises, food_items) arkiveres med
-  `archived_at`, slettes aldri.
+- Katalogtabeller (habits, accounts, exercises, food_items, dinners)
+  arkiveres med `archived_at`, slettes aldri.
 - Avledede tall lagres aldri – bruk views (`weekly_volume`,
   `portfolio_history`, `daily_nutrition`) eller beregn i datalaget.
 - Metrics er LANG modell: `metric_types(key,label,unit)` +
@@ -165,9 +165,10 @@ Driftsdokumentasjon («hvordan gjør jeg …») bor i wikien `docs/` – se
 
 `/` hjem (klokke + meny) · `/dashbord` alt samlet · `/vaner` heatmap + radar ·
 `/maal` (misogi-kort + fremdriftsmål) · `/styrke` · `/investeringer` ·
-`/metrikker` (vekt-input + kurve) · `/journal` · `/reiser` (klikkbart kart +
-skjema + liste) · `/innstillinger` (konto/passordbytte) · `/logg-inn` (eneste
-uinnloggede side). Undersider bruker `SideHeader`.
+`/metrikker` (vekt-input + kurve) · `/mat` (ukesplan + middagskatalog +
+handleliste) · `/journal` · `/reiser` (klikkbart kart + skjema + liste) ·
+`/innstillinger` (konto/passordbytte) · `/logg-inn` (eneste uinnloggede
+side). Undersider bruker `SideHeader`.
 
 ## Reiser (Memory Bank)
 
@@ -230,6 +231,38 @@ uinnloggede side). Undersider bruker `SideHeader`.
   slette»), period-felt for gjentakelse, workouts/investerings-kilder når
   fase 3/5 lander.
 
+## Mat (ukesplanlegger)
+
+- Fire tabeller (migrasjon `20260901164829_mat`): **`food_items`** – DELT
+  referansedata synket fra Matvaretabellen (Mattilsynet; ~2 120 matvarer,
+  verdier per 100 g + porsjonsvekter i jsonb). Ingen user_id – kun
+  select-policy for innloggede; skriving KUN via `npm run synk:mat`
+  (direkte DB-tilkobling som backup-scriptet; `--dry-run` finnes). Upsert
+  på `source_id`; borte fra kilden = arkivert. **`dinners`** – per-bruker
+  katalog (`servings`, fremgangsmåte, `oda_recipe_id`/`source_url` som
+  kildereferanse). **`dinner_ingredients`** – gram + nullbar mapping mot
+  food_items. **`dinner_plans`** – én middag per (bruker, dag).
+- Næring lagres ALDRI: kcal/makroer per porsjon beregnes i
+  `src/lib/ernaering.ts` (maal.ts-presedensen) fra gram × verdier per
+  100 g – en ingrediens teller kun når BÅDE mapping og gram er satt
+  (dekningen «X av Y ingredienser» vises i UI). Handlelisten aggregeres
+  samme sted (`aggregerHandleliste`).
+- Upsert-nøkkel for ukesplanen: `(user_id, planned_on)` – nytt valg samme
+  dag bytter middag (metrics-mønsteret; «Ingen» sletter idempotent).
+  Delvis unik `(user_id, oda_recipe_id)` stopper dobbeltimport: 23505 →
+  `MiddagAlleredeImportert` → «allerede importert» (journal-mønsteret).
+- Oda er kun utgangspunkt (Hardcover-prinsippet: fakta importeres som egne
+  redigerbare kopier): import og kurv-fylling skjer i Claude-økt via
+  Oda-MCP – appen har ingen lesebane mot Oda. Rutiner (inkl. gram-fellen i
+  Odas mengder): `docs/mat-synk-og-import.md`.
+- UI `/mat`: `UkesplanKort` (dag-selecter som lagrer ved endring;
+  ukenavigasjon via `?uke=`), `MatUtforsker` (dialog m/`MiddagSkjema` –
+  ingrediensradene er klient-state sendt som JSON i ett skjult felt,
+  matvaresøk via imperativt kalt server function), `HandlelisteKort`.
+  Mattilsynet-attribusjonen nederst på siden er et kildekrav og skal stå.
+- Fremtidige utvidelser (egne migrasjoner): `meals`/`meal_items` + view
+  `daily_nutrition` (full matlogging), egne per-bruker-matvarer.
+
 ## Veikart (fase 2–7)
 
 2. **Vaner:** `habits` + `habit_entries` (PK `(habit_id, done_on)`, rad =
@@ -255,7 +288,11 @@ uinnloggede side). Undersider bruker `SideHeader`.
    `instruments`, `account_transactions`, `instrument_prices` (eksterne
    sluttkurser; kilde velges i fasen – Yahoo Finance har intet offisielt API),
    view `portfolio_history`. Nordnet/DNB-API som senere utvidelse.
-6. **Mat:** `food_items`, `meals`, `meal_items`, view `daily_nutrition`,
-   ny rute `/mat`.
+6. **Mat (fremskyndet som ukesplanlegger på brukerens ønske):**
+   `food_items`, `dinners`, `dinner_ingredients`, `dinner_plans` på `/mat`;
+   se egen seksjon over. **KODE GJENNOMFØRT sep. 2026** (migrasjon
+   `20260901164829_mat`); synk-kjøring og Oda-import gjenstår (se
+   MAT-PLAN.md). Full matlogging (`meals`, `meal_items`, view
+   `daily_nutrition`) bygges senere oppå samme grunnmur.
 7. **Eksport + herding:** `export_all()`-RPC + eksport-side, restore-test,
    full advisors-gjennomgang, hosting-sjekkliste.

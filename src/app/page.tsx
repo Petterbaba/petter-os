@@ -10,6 +10,7 @@ const meny = [
   { href: "/styrke", navn: "Styrke", beskrivelse: "siste økt og volum" },
   { href: "/investeringer", navn: "Investeringer", beskrivelse: "portefølje" },
   { href: "/metrikker", navn: "Metrikker", beskrivelse: "vektkurve" },
+  { href: "/mat", navn: "Mat", beskrivelse: "middager og ukesplan" },
   { href: "/journal", navn: "Journal", beskrivelse: "refleksjoner" },
   { href: "/reiser", navn: "Reiser", beskrivelse: "kart og turer" },
   { href: "/innstillinger", navn: "Innstillinger", beskrivelse: "konto og passord" },
