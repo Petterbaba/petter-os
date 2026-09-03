@@ -71,8 +71,10 @@ export function StyrkeModul({ sisteOkt, volumtrend }: StyrkeModulProps) {
             tick={{ fill: "var(--color-ink-3)", fontSize: 11 }}
             tickFormatter={(v: number) => (v === 0 ? "0" : `${v / 1000}k`)}
           />
+          {/* heat-0 ligger ett hakk fra kortflaten i begge temaer –
+              subtil hover-flate uten temaspesifikk literal */}
           <Tooltip
-            cursor={{ fill: "rgba(255, 255, 255, 0.04)" }}
+            cursor={{ fill: "var(--color-heat-0)" }}
             content={
               <ChartTooltip
                 formatValue={(v) => `${v.toLocaleString("nb-NO")} kg`}

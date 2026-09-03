@@ -44,7 +44,9 @@ export function VaneRadar({ vaner, oppforinger, periode }: VaneRadarProps) {
             tick={{ fill: "var(--color-ink-2)", fontSize: 11 }}
           />
           <PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false} />
+          {/* cursor: se MetrikkModul – recharts-default er hardkodet #ccc */}
           <Tooltip
+            cursor={{ stroke: "var(--color-grid)" }}
             content={<ChartTooltip formatValue={(v) => `${v} %`} />}
           />
           <Radar

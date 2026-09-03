@@ -150,12 +150,33 @@ Driftsdokumentasjon («hvordan gjør jeg …») bor i wikien `docs/` – se
 
 - Mørkt, rolig «personlig kontrollrom» – cockpit, ikke SaaS-salgsside.
   Ingen navbar; all navigasjon via menyen på hjemsiden. Mobil først.
-- Tokens i `@theme` i `globals.css`: `bg`, `card`, `edge`/`grid`/`axis`,
-  `ink`/`ink-2`/`ink-3`, `accent`, `heat-0`–`heat-4`.
-- **Én aksentfarge: rav/gull `#c98500`** – validert mot kortflaten `#161614`
-  (dataviz-skillens validator). Tekst bruker ink-tonene, aldri aksent
-  (unntak: logo-detalj). Heat-trappen er validert som ordinal rampe – endre
-  ikke uten å kjøre validatoren på nytt.
+- **To temaer, ett tokensett** (sep. 2026): hvert token i `@theme` bærer
+  lys + mørk verdi via CSS `light-dark()`; `color-scheme` på `<html>`
+  velger. Mørkt (svart/gull) er standard – også uten cookie; lyst tema
+  er Claude-paletten (ivory `#f0eee6`/pampas-kort `#faf9f5`, varm mørk
+  tekst `#3d3929`-familien, Crail-korall som aksent). `TemaKnapp`
+  (øverst til høyre: i `SideHeader`, på hjemsiden og på `/logg-inn`) er
+  en ren server-form som setter `tema`-cookien via `settTema` i
+  `src/app/actions.ts` (målverdi i skjult felt – idempotent, ikke
+  toggle); `layout.tsx` leser cookien → `data-theme` + `themeColor`
+  (ingen FOUC). Kjent begrensning: andre åpne faner ser temabyttet
+  først ved reload (bevisst akseptert). Delte konstanter i
+  `src/lib/tema.ts`. Komponenter bruker KUN tokens – Tailwind-klasser
+  eller `var(--color-*)` i recharts-props, aldri literale farger (de
+  ville brutt temabyttet). NB: recharts' Tooltip-cursor har hardkodet
+  `#ccc`-default – sett alltid `cursor`-prop med token.
+- Tokens i `@theme static` i `globals.css`: `bg`, `card`,
+  `edge`/`grid`/`axis`, `ink`/`ink-2`/`ink-3`, `accent`,
+  `heat-0`–`heat-4`. `static` er påkrevd: uten den tree-shaker Tailwind
+  tokens som kun refereres via `var(--color-*)` i props.
+- **Én aksentfarge per tema** – mørkt rav/gull `#c98500` (5,9:1 mot
+  kortflaten `#161614`), lyst Crail `#c15f3c` (4,0:1 mot `#faf9f5`;
+  Claudes knappe-terrakotta `#d97757` gir bare 2,96:1 og stryker på
+  markørgulvet); begge validert med dataviz-skillens validator. Tekst
+  bruker ink-tonene, aldri aksent (unntak: logo-detalj). Begge
+  heat-trappene er validert som ordinale ramper (rav mot lysere i mørk
+  modus, Crail-korall mot mørkere i lys) – endre ikke uten å kjøre
+  validatoren på nytt.
 - Grafkonvensjoner: 2px linjer, arealfyll ~10 %, søyler ≤18px m/4px radius,
   hårfine gridlinjer, én serie per graf (ingen legend), tooltips overalt,
   `tabular-nums` kun på tallkolonner, runde akse-ticks.
@@ -261,7 +282,13 @@ side). Undersider bruker `SideHeader`.
   matvaresøk via imperativt kalt server function), `HandlelisteKort`.
   Mattilsynet-attribusjonen nederst på siden er et kildekrav og skal stå.
 - Fremtidige utvidelser (egne migrasjoner): `meals`/`meal_items` + view
-  `daily_nutrition` (full matlogging), egne per-bruker-matvarer.
+  `daily_nutrition` (full matlogging), egne per-bruker-matvarer. Uten
+  migrasjon (parkert sep. 2026; tas etter middagsimporten):
+  **ukesoptimalisering** – overlapp-forslag i ukesplanen (middager som
+  deler ingredienser med ukens valgte, avledet fra `dinner_ingredients` –
+  ernaering.ts-presedensen). Pakkeøkonomien (én stor pose fremfor to små)
+  hører til handleøkten – priser/pakkestørrelser er volatile Oda-data og
+  skal ALDRI inn i DB (se «Ukeshandel» i `docs/mat-synk-og-import.md`).
 
 ## Veikart (fase 2–7)
 

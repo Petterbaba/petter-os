@@ -2,6 +2,7 @@ import Link from "next/link";
 import { DagensDato } from "@/components/DagensDato";
 import { Klokke } from "@/components/Klokke";
 import { SkriveLogo } from "@/components/SkriveLogo";
+import { TemaKnapp } from "@/components/TemaKnapp";
 
 const meny = [
   { href: "/dashbord", navn: "Dashbord", beskrivelse: "alt på ett brett" },
@@ -18,7 +19,7 @@ const meny = [
 
 export default function Hjem() {
   return (
-    <main className="flex flex-1 flex-col items-center justify-center gap-12 px-4 py-16 md:flex-row md:items-stretch md:gap-8 md:p-0">
+    <main className="relative flex flex-1 flex-col items-center justify-center gap-12 px-4 py-16 md:flex-row md:items-stretch md:gap-8 md:p-0">
       <nav
         aria-label="Hovedmeny"
         className="order-2 w-full max-w-sm md:order-none md:w-72 md:shrink-0 md:border-r md:border-edge md:pt-24 md:pr-6 md:pl-8"
@@ -48,6 +49,9 @@ export default function Hjem() {
         </p>
         <DagensDato className="text-sm text-ink-3" medUke />
       </div>
+      {/* Sist i DOM-en så tab-rekkefølgen starter med menyen; absolute
+          holder den visuelt øverst til høyre. */}
+      <TemaKnapp className="absolute right-4 top-4 md:right-6 md:top-6" />
     </main>
   );
 }

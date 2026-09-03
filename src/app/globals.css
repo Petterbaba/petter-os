@@ -1,33 +1,51 @@
 @import "tailwindcss";
 
-/* petter-os kjører kun mørkt tema i v0.1 – ingen light-mode.
-   Aksent #c98500 er validert mot kortflaten (dataviz-skillens validator). */
-@theme {
-  --color-bg: #0d0d0c;
-  --color-card: #161614;
-  --color-edge: #262623;
-  --color-grid: #262623;
-  --color-axis: #383835;
-  --color-ink: #ecebe6;
-  --color-ink-2: #a4a39b;
-  --color-ink-3: #7a7973;
-  --color-accent: #c98500;
-  --color-accent-soft: #c9850020;
+/* To temaer, ett tokensett: hvert token bærer lys + mørk verdi via
+   light-dark(), og color-scheme på <html> velger (tema-cookien →
+   data-theme i layout.tsx; TemaKnapp veksler). Mørkt (svart/gull) er
+   standard; lyst tema bruker Claude-paletten – ivory/pampas-flater,
+   varm mørk tekst og Crail-korall som aksent. Aksentene er validert
+   mot sin kortflate med dataviz-skillens validator: mørk #c98500
+   5,9:1, lys #c15f3c 4,0:1 (Claudes knappe-terrakotta #d97757 gir
+   bare 2,96:1 og stryker på markørgulvet – derfor Crail).
+   NB: «static» er påkrevd – uten den tree-shaker Tailwind tokens som
+   kun refereres via var(--color-*) i props (recharts-mønsteret). */
+@theme static {
+  --color-bg: light-dark(#f0eee6, #0d0d0c);
+  --color-card: light-dark(#faf9f5, #161614);
+  --color-edge: light-dark(#ded9cb, #262623);
+  --color-grid: light-dark(#ded9cb, #262623);
+  --color-axis: light-dark(#c4beac, #383835);
+  --color-ink: light-dark(#3d3929, #ecebe6);
+  --color-ink-2: light-dark(#5d5748, #a4a39b);
+  /* ink-3 er minste tekstgrad og skal bestå AA 4,5:1 på BEGGE flater
+     i begge temaer (målt sep. 2026: lys 5,1/4,7, mørk 4,7/5,0). */
+  --color-ink-3: light-dark(#6f6a5a, #83827b);
+  --color-accent: light-dark(#c15f3c, #c98500);
 
-  /* Sekvensiell rav-trapp for heatmap-intensitet (validert som ordinal
-     rampe mot kortflaten). heat-0 er tom dag, ett hakk over kortflaten. */
-  --color-heat-0: #1f1f1d;
-  --color-heat-1: #6b4a0b;
-  --color-heat-2: #96690a;
-  --color-heat-3: #c98500;
-  --color-heat-4: #ecb03c;
+  /* Sekvensiell trapp for heatmap-intensitet – rav i mørk modus,
+     Crail-korall i lys. Begge er validert som ordinale ramper mot sin
+     KORTFLATE (lys: sep. 2026); intensiteten stiger mot lysere rav i
+     mørk modus og mot mørkere korall i lys. heat-0 er tom dag/ubesøkt
+     land, ett hakk fra flatene rundt. NB: lys trapp er kun godkjent på
+     kort – heat-1 gir 1,87:1 rett på bg og stryker 2:1-gulvet der. */
+  --color-heat-0: light-dark(#e5e1d2, #1f1f1d);
+  --color-heat-1: light-dark(#dfa286, #6b4a0b);
+  --color-heat-2: light-dark(#c15f3c, #96690a);
+  --color-heat-3: light-dark(#96442a, #c98500);
+  --color-heat-4: light-dark(#6b2f1c, #ecb03c);
 
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
+/* Mørkt er standard (også uten cookie); lyst velges eksplisitt med
+   TemaKnapp. data-theme settes server-side i layout – ingen FOUC. */
 html {
   color-scheme: dark;
+}
+html[data-theme="lys"] {
+  color-scheme: light;
 }
 
 /* Reisekartet: vendored verdenskart-SVG (CC BY-SA 3.0) injiseres som HTML;
@@ -64,7 +82,14 @@ html {
 }
 .reisekart :is(path.valgt, g.valgt path) {
   stroke: var(--color-accent);
-  stroke-width: 1.2;
+  stroke-width: 1.5;
+}
+/* Valgt + besøkt: fyllet er selv aksentnært (mørk heat-3 = accent, som
+   ville gitt usynlig ring), så ringen bruker kortfargen – validert
+   ≥5,9:1 mot besokt-/hover-fyllene i begge temaer. Accent-ringen over
+   gjelder da kun ubesøkte land (3,2/5,4:1 mot heat-0). */
+.reisekart :is(path.valgt.besokt, g.valgt.besokt path) {
+  stroke: var(--color-card);
 }
 @media (prefers-reduced-motion: reduce) {
   .reisekart :is(path.klikkbar, g.klikkbar path) {

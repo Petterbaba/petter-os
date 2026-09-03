@@ -8,7 +8,7 @@ export function SkjemaFelt({
       <span className="mb-1 block text-xs text-ink-3">{etikett}</span>
       <input
         {...inputProps}
-        className="w-full rounded-lg border border-edge bg-bg px-3 py-2 text-sm text-ink outline-none transition-colors focus:border-accent"
+        className="w-full rounded-lg border border-edge bg-bg px-3 py-2 text-sm text-ink outline-none transition-colors placeholder:text-ink-3 focus:border-accent"
       />
     </label>
   );

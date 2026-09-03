@@ -64,7 +64,9 @@ export function InvesteringModul({ kontoer, portefolje }: InvesteringModulProps)
             tick={{ fill: "var(--color-ink-3)", fontSize: 11 }}
             tickFormatter={(v: number) => `${Math.round(v / 1000)}k`}
           />
+          {/* cursor: se MetrikkModul – recharts-default er hardkodet #ccc */}
           <Tooltip
+            cursor={{ stroke: "var(--color-grid)" }}
             content={
               <ChartTooltip formatLabel={formatDato} formatValue={formatNok} />
             }

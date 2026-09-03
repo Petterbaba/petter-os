@@ -61,3 +61,25 @@ skjema, med matvaresøk per ingrediensrad.
 Kurv-fylling skjer også i Claude-økt («legg ukens handleliste i kurven» –
 MCP-ens cart-verktøy tar `recipe_id` direkte for Oda-retter), aldri fra
 appen. Handlelisten på `/mat` er grunnlaget.
+
+### Ukeshandel (pakkeøkonomi)
+
+Rutine når ukens handleliste legges i kurven:
+
+1. Utgangspunktet er ukens **aggregerte** handleliste
+   (`aggregerHandleliste` – gram per matvare for hele uken, ikke per
+   middag).
+2. Velg billigste pakkekombinasjon som dekker ukens totalbehov: sammenlign
+   `unitPrice` (kr/kg) fra produktsøket, og foretrekk én stor pakke
+   fremfor flere små når kiloprisen er lavere (rødløk-eksempelet: én stor
+   pose slår to strømper). Sjekk kampanjepriser («Maks N per kunde»-varer
+   viser rabattpris i `price`, fullpris i linjetotalen).
+3. Meld fra om vesentlige rester («~150 g parmesan til overs») og foreslå
+   gjerne en katalogmiddag samme uke som bruker dem opp – gjelder også
+   proteinet: skal uken ha kylling én gang, vurder en middag til med
+   kylling så pakken brukes opp.
+
+Fremtidig app-støtte (parkert sep. 2026): overlapp-forslag i ukesplanen,
+avledet fra `dinner_ingredients` – se CLAUDE.md («Mat», fremtidige
+utvidelser). Priser og pakkestørrelser skal aldri inn i databasen; de bor
+her, i handleøkten.

@@ -35,7 +35,11 @@ export async function proxy(request: NextRequest) {
   if (!user && !request.nextUrl.pathname.startsWith("/logg-inn")) {
     const url = request.nextUrl.clone();
     url.pathname = "/logg-inn";
-    return NextResponse.redirect(url);
+    // 303 for ikke-GET: standard 307 bevarer metode+body, så en server
+    // action-POST (f.eks. TemaKnapp ved utløpt sesjon) ville blitt
+    // re-POST-et mot /logg-inn der action-id-en ikke finnes → 500.
+    // 303 får nettleseren til å GET-e innloggingssiden i stedet.
+    return NextResponse.redirect(url, request.method === "GET" ? 307 : 303);
   }
 
   return response;

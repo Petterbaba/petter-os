@@ -116,7 +116,10 @@ export function MetrikkModul({ vekt }: MetrikkModulProps) {
             tick={{ fill: "var(--color-ink-3)", fontSize: 11 }}
             tickFormatter={(v: number) => `${Math.round(v)}`}
           />
+          {/* Uten cursor-prop tegner recharts hoverlinjen i hardkodet
+              #ccc utenom tokenene */}
           <Tooltip
+            cursor={{ stroke: "var(--color-grid)" }}
             content={
               <ChartTooltip formatLabel={formatDato} formatValue={formatKg} />
             }
