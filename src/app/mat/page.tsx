@@ -1,43 +1,42 @@
 import type { Metadata } from "next";
 import { getMiddager, getUkesplan } from "@/lib/data/mat";
-import { dagerIPeriode, iDagOslo, parseIsoDato, tilIsoDato } from "@/lib/dato";
+import {
+  dagerIPeriode,
+  iDagOslo,
+  mandagFor,
+  parseIsoDato,
+  skiftDager,
+} from "@/lib/dato";
 import { erGyldigIsoDato } from "@/lib/validering";
 import { isoUkenummer } from "@/lib/format";
 import { SideHeader } from "@/components/SideHeader";
 import { MatUtforsker } from "@/components/MatUtforsker";
-import { UkesplanKort } from "@/components/UkesplanKort";
 import { HandlelisteKort } from "@/components/HandlelisteKort";
+import { OdaKort } from "@/components/OdaKort";
+import { lesOdaTilkobling } from "@/lib/oda/tilkobling";
 
 export const metadata: Metadata = {
   title: "Mat · petter-os",
 };
 
-function mandagFor(iso: string): string {
-  const dato = parseIsoDato(iso);
-  dato.setDate(dato.getDate() - ((dato.getDay() + 6) % 7));
-  return tilIsoDato(dato);
-}
-
-function skiftDager(iso: string, dager: number): string {
-  const dato = parseIsoDato(iso);
-  dato.setDate(dato.getDate() + dager);
-  return tilIsoDato(dato);
-}
-
 // Ukedagsnavnene beregnes her på serveren og sendes som props: Node og
 // nettleser kan ha ulike CLDR-versjoner, og et avvik ville gitt
 // hydration-feil (jf. landnavn-kommentaren i ReiseUtforsker).
-const ukedagFormat = new Intl.DateTimeFormat("nb-NO", {
+const ukedagKort = new Intl.DateTimeFormat("nb-NO", {
   weekday: "short",
+  timeZone: "UTC",
+});
+const ukedagLang = new Intl.DateTimeFormat("nb-NO", {
+  weekday: "long",
   timeZone: "UTC",
 });
 
 export default async function Mat({
   searchParams,
 }: {
-  searchParams: Promise<{ uke?: string }>;
+  searchParams: Promise<{ uke?: string; oda?: string }>;
 }) {
-  const { uke } = await searchParams;
+  const { uke, oda } = await searchParams;
   const iDag = iDagOslo();
   const denneUken = mandagFor(iDag);
   // ?uke=<dato> viser uken datoen faller i (snappes til mandag);
@@ -46,35 +45,64 @@ export default async function Mat({
     uke !== undefined && erGyldigIsoDato(uke) ? mandagFor(uke) : denneUken;
   const sondag = skiftDager(mandag, 6);
 
-  const [middager, planer] = await Promise.all([
+  const [middager, planer, odaTilkobling] = await Promise.all([
     getMiddager(),
     getUkesplan(mandag, sondag),
+    lesOdaTilkobling(),
   ]);
+
+  // Oda-kortet: hvilke av ukens retter som kan gå rett i kurven, og
+  // status fra OAuth-callbacken (?oda=koblet|feil|konfig).
+  const middagPerId = new Map(middager.map((middag) => [middag.id, middag]));
+  const ukensMiddager = planer
+    .map((plan) => middagPerId.get(plan.dinnerId))
+    .filter((middag) => middag !== undefined);
+  const odaStatus: Record<string, string> = {
+    koblet: "Koblet til Oda.",
+    feil: "Kunne ikke koble til Oda. Prøv igjen.",
+    konfig: "ODA_COOKIE_SECRET mangler i .env.local (se .env.example).",
+  };
 
   const dager = dagerIPeriode(mandag, sondag).map((dato) => ({
     dato,
-    ukedag: ukedagFormat.format(new Date(dato)).replace(".", ""),
+    ukedag: ukedagKort.format(new Date(dato)).replace(".", ""),
+    ukedagLang: ukedagLang.format(new Date(dato)),
   }));
 
+  // HelloFresh-modellen: dagsruter og middagskort er klikkflater som åpner
+  // dialogen (oppskrift med dagsvalg, eller dagens middagsvalg). Siden er
+  // bredere enn de andre undersidene (reise-presedensen).
   return (
-    <main className="mx-auto w-full max-w-2xl px-4 py-8 sm:px-6 sm:py-12">
+    <main className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6 sm:py-12">
       <SideHeader />
-      <div className="space-y-4">
-        <UkesplanKort
-          dager={dager}
-          planer={planer}
-          middager={middager}
-          iDag={iDag}
-          ukeNummer={isoUkenummer(parseIsoDato(mandag))}
-          forrigeUke={skiftDager(mandag, -7)}
-          nesteUke={skiftDager(mandag, 7)}
-          erDenneUken={mandag === denneUken}
-        />
-        <MatUtforsker middager={middager} />
-        <HandlelisteKort planer={planer} middager={middager} />
-      </div>
+      <MatUtforsker
+        middager={middager}
+        dager={dager}
+        planer={planer}
+        iDag={iDag}
+        ukeNummer={isoUkenummer(parseIsoDato(mandag))}
+        forrigeUke={skiftDager(mandag, -7)}
+        nesteUke={skiftDager(mandag, 7)}
+        erDenneUken={mandag === denneUken}
+        handleliste={
+          <div className="space-y-2">
+            <HandlelisteKort planer={planer} middager={middager} />
+            <OdaKort
+              mandag={mandag}
+              koblet={odaTilkobling !== null}
+              antallMedOda={
+                ukensMiddager.filter((middag) => middag.odaRecipeId !== null).length
+              }
+              utenOda={ukensMiddager
+                .filter((middag) => middag.odaRecipeId === null)
+                .map((middag) => middag.title)}
+              statusMelding={oda === undefined ? null : (odaStatus[oda] ?? null)}
+            />
+          </div>
+        }
+      />
       {/* Kildekrav fra Matvaretabellen: næringsdataene skal krediteres. */}
-      <p className="mt-6 text-xs text-ink-3">
+      <p className="mt-8 text-xs text-ink-3">
         Næringsdata:{" "}
         <a
           href="https://www.matvaretabellen.no/"

@@ -18,6 +18,10 @@
 3. **Odas rolle er avgrenset**: inspirasjon/import ved oppstart og
    handlekurv-utgang når ukesplanen er lagt (MCP-ens cart-verktøy).
    Oda-URL lagres som kildereferanse på importerte retter.
+   *Justert 3. sep 2026:* kurv-utgangen finnes nå også som knapp i appen
+   – Odas MCP-server er et vanlig OAuth-beskyttet HTTP-endepunkt, så
+   appen kan være klient selv (se CLAUDE.md «Mat»). Lesebane fra appen
+   til Oda er fortsatt bevisst utelatt.
 4. **Scope**: ukesplanlegger (planlegging + handleliste + næring per
    porsjon). Full matlogging (`daily_nutrition`-viewet, hva som faktisk
    ble spist) er bevisst utenfor – bygges senere oppå samme grunnmur.
@@ -67,8 +71,16 @@ konvertering til gram trenger pakkestørrelser fra produkt-API-et.
 3. **Import av middager**: skjer i Claude-økt via Oda-MCP (inventaret
    under) + vanlig skjema i appen (dialog-mønsteret fra reiser/mål) for
    retter utenfra. Ingredienser mappes mot `food_items`; Petter
-   godkjenner underveis. **GJENSTÅR** (synken er kjørt, så veien er
-   åpen). Oda-MCP er lagt inn i `.mcp.json` 1. sep 2026 (endepunkt
+   godkjenner underveis. **GJENNOMFØRT 3. sep 2026**: 33 retter
+   importert i tillegg til Marry me chicken (34 totalt; rundstykker og
+   pizzasnurrer hoppet over som ikke-middager). Ingredienslistene ble
+   hentet fra oppskriftssidene (WebFetch gir ren liste med mengder per
+   4 porsjoner – ingen produktenhet-brøker), mappet mot `food_items`
+   og satt inn med direkte DB-tilkobling (engangsscript i økten, ikke i
+   repoet). 6 ingredienser er umappet (griljermel, fersk estragon,
+   harissa, fiskerub, korma-saus, tikka masala-saus) og en del er
+   proxy-mappet – alt står i `notes` per middag for Petters
+   gjennomgang i appen. Oda-MCP er lagt inn i `.mcp.json` 1. sep 2026 (endepunkt
    `https://oda.com/mcp`, http-type) – krever restart av Claude
    Code-økten + OAuth-godkjenning første gang.
 4. **UI `/mat`**: **GJENNOMFØRT 1. sep 2026** – `UkesplanKort` (dag-

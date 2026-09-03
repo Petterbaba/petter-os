@@ -44,23 +44,53 @@ kopier** – Oda er utgangspunkt, aldri lesebane. Inventaret over kandidater
 
 Rutinen per rett:
 
-1. Hent oppskriften via Oda-MCP (`recipe_search`/middagslistene).
-2. Konverter mengdene til gram. **Kjent felle:** Odas middagslister
-   oppgir brøker av *produktenheter* («0,3 × 500 g-pakke pasta»), ikke
-   gram – pakkestørrelsen må hentes fra produktdataene.
+1. Finn oppskrifts-URL-en via Oda-MCP (`recipe_search`,
+   `get_liked_recipes`, `get_purchased_recipes` – disse gir kun
+   metadata). Hent så selve **oppskriftssiden** (WebFetch): den gir en
+   ren ingrediensliste med mengder for 4 porsjoner («400 g Kyllingfilet»,
+   «2 dl Kremfløte») pluss fremgangsmåten. Det var slik importen 3. sep
+   2026 ble gjort.
+2. Konverter mengdene til gram (dl fløte/melk = 100 g, kokosmelk 95 g,
+   ss olje 10 g, fedd hvitløk 4 g, boil-in-bag-ris 125 g tørr per pose,
+   hermetiske kikerter 240 g avrent per boks; stk-vekter fra
+   `food_items.portions`). **Kjent felle:** Odas *middagslister*
+   (`get_product_list`) oppgir brøker av produktenheter («0,3 × 500 g-
+   pakke pasta»), ikke gram – bruk oppskriftssiden i stedet.
 3. Mapp hver ingrediens mot `food_items` (velg riktig variant – rå/kokt
    betyr mye for kcal). Petter godkjenner mappingen underveis.
 4. Lagre med Oda-id og oppskrifts-URL som kildereferanse. Dobbeltimport
-   stoppes av unik indeks per bruker («allerede importert»).
+   stoppes av unik indeks per bruker («allerede importert»). Skriv
+   antakelser og proxy-mappinger («bacon regnet som rå sideflesk»,
+   «korma-saus umappet») i middagens `notes`, så de kan rettes i appen.
+   Ferdigsauser (korma, tikka masala), griljermel og fersk estragon
+   finnes ikke i Matvaretabellen – la dem stå umappet fremfor å gjette.
+   Ved masseimport: ta `npm run backup` først og sett inn i én
+   transaksjon med eksplisitt `user_id` (direkte DB-tilkobling omgår
+   `auth.uid()`-defaulten).
 
 Retter utenfra Oda legges inn manuelt med «Ny middag» på `/mat` – samme
 skjema, med matvaresøk per ingrediensrad.
 
 ## Handlekurv hos Oda
 
-Kurv-fylling skjer også i Claude-økt («legg ukens handleliste i kurven» –
-MCP-ens cart-verktøy tar `recipe_id` direkte for Oda-retter), aldri fra
-appen. Handlelisten på `/mat` er grunnlaget.
+**Fra appen (sep. 2026):** Oda-kortet under handlelisten på `/mat`.
+
+1. «Koble til Oda» én gang per nettleser: appen registrerer seg som
+   OAuth-klient hos Oda, du godkjenner på oda.com og sendes tilbake til
+   `/mat?oda=koblet`. Tokenene ligger kryptert i en cookie (nøkkel
+   `ODA_COOKIE_SECRET` i `.env.local`) – ingenting lagres i databasen.
+2. «Legg i Oda-kurven» sender ukens retter som har Oda-oppskrift til
+   kurven, med middagens porsjonstall. Kvitteringen har lenke til kurven;
+   betaling skjer hos Oda. Retter uten Oda-oppskrift listes så du kan
+   legge varene inn selv.
+3. Kurven hos Oda er *relativ*: trykker du to ganger, ligger rettene der
+   to ganger. Sjekk kurven før du bestiller.
+4. «koble fra» sletter cookien. Utløpt eller avvist token gjør det samme
+   automatisk – bare koble til på nytt.
+
+**Fra Claude-økt (fortsatt mulig):** «legg ukens handleliste i kurven» –
+MCP-ens cart-verktøy tar `recipe_id` direkte for Oda-retter. Handlelisten
+på `/mat` er grunnlaget.
 
 ### Ukeshandel (pakkeøkonomi)
 

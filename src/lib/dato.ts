@@ -32,3 +32,17 @@ export function dagerIPeriode(fra: string, til: string): string[] {
   }
   return dager;
 }
+
+// Flytter en ISO-dato `dager` dager (negativt = bakover).
+export function skiftDager(iso: string, dager: number): string {
+  const dato = parseIsoDato(iso);
+  dato.setDate(dato.getDate() + dager);
+  return tilIsoDato(dato);
+}
+
+// Mandagen i uken datoen faller i (ukesplanens ankerdato).
+export function mandagFor(iso: string): string {
+  const dato = parseIsoDato(iso);
+  dato.setDate(dato.getDate() - ((dato.getDay() + 6) % 7));
+  return tilIsoDato(dato);
+}

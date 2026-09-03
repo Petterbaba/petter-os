@@ -1,9 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import {
-  arkiverMiddag,
   fjernPlanlagtMiddag,
+  getMiddager,
+  getUkesplan,
+  planleggMiddager,
   lagreMiddag,
   MiddagAlleredeImportert,
   oppdaterMiddag,
@@ -12,6 +16,23 @@ import {
   type NyIngrediens,
 } from "@/lib/data/mat";
 import { erGyldigIsoDato, parseNorskTall } from "@/lib/validering";
+import { mandagFor, skiftDager } from "@/lib/dato";
+import { lagUkesmeny } from "@/lib/ukesmeny";
+import {
+  byggOdaAutorisasjonsUrl,
+  fornyOdaToken,
+  lagPkce,
+  lagState,
+  registrerOdaKlient,
+} from "@/lib/oda/oauth";
+import { kallOdaVerktoy, OdaIkkeAutorisert } from "@/lib/oda/mcp";
+import {
+  lagreOdaFlyt,
+  lagreOdaTilkobling,
+  lesOdaTilkobling,
+  OdaKonfigMangler,
+  slettOdaTilkobling,
+} from "@/lib/oda/tilkobling";
 import type { ActionResultat } from "@/lib/actions";
 
 // DB håndhever det generiske (ikke-tom tittel, porsjoner > 0, gram > 0);
@@ -223,27 +244,6 @@ export async function lagreMiddagAction(
   };
 }
 
-export async function arkiverMiddagAction(
-  _forrige: ActionResultat | undefined,
-  formData: FormData,
-): Promise<ActionResultat> {
-  const id = String(formData.get("id") ?? "").trim();
-  if (!UUID_MONSTER.test(id)) {
-    return { ok: false, melding: "Kunne ikke arkivere middagen. Prøv igjen." };
-  }
-
-  try {
-    await arkiverMiddag(id);
-  } catch (feil) {
-    // Generisk melding i UI; detaljer kun i serverloggen.
-    console.error("Arkivering av middag feilet:", feil);
-    return { ok: false, melding: "Kunne ikke arkivere middagen. Prøv igjen." };
-  }
-
-  revalidatePath("/mat");
-  return { ok: true, melding: "Middag arkivert." };
-}
-
 export async function planleggMiddagAction(
   _forrige: ActionResultat | undefined,
   formData: FormData,
@@ -274,13 +274,105 @@ export async function planleggMiddagAction(
   return { ok: true, melding: "Ukesplan oppdatert." };
 }
 
+// «Lag ukesmeny»: fyller ledige dager (modus «fyll») eller bytter hele
+// uken (modus «erstatt») med retter fra katalogen. Utvalgsreglene bor i
+// src/lib/ukesmeny.ts; her hentes bare grunnlaget (katalog, ukens plan og
+// de siste fire ukene for «nylig brukt») og resultatet lagres i ett kall.
+export async function lagUkesmenyAction(
+  _forrige: ActionResultat | undefined,
+  formData: FormData,
+): Promise<ActionResultat> {
+  const ukeRaa = String(formData.get("mandag") ?? "").trim();
+  const modus = String(formData.get("modus") ?? "").trim();
+
+  if (!erGyldigIsoDato(ukeRaa)) {
+    return { ok: false, melding: "Ugyldig uke." };
+  }
+  if (modus !== "fyll" && modus !== "erstatt") {
+    return { ok: false, melding: "Kunne ikke lage ukesmeny. Prøv igjen." };
+  }
+  const mandag = mandagFor(ukeRaa);
+  const sondag = skiftDager(mandag, 6);
+
+  let antall: number;
+  try {
+    const [middager, ukensPlaner, nyligePlaner] = await Promise.all([
+      getMiddager(),
+      getUkesplan(mandag, sondag),
+      getUkesplan(skiftDager(mandag, -28), skiftDager(mandag, -1)),
+    ]);
+    if (middager.length === 0) {
+      return {
+        ok: false,
+        melding: "Ingen middager i katalogen ennå – legg inn noen først.",
+      };
+    }
+
+    const middagPerId = new Map(middager.map((middag) => [middag.id, middag]));
+    // En plan mot en arkivert middag regnes som ledig dag.
+    const laast = new Map(
+      ukensPlaner
+        .filter((plan) => middagPerId.has(plan.dinnerId))
+        .map((plan) => [plan.plannedOn, middagPerId.get(plan.dinnerId)!]),
+    );
+    const uke = [];
+    for (let i = 0; i < 7; i++) {
+      const dato = skiftDager(mandag, i);
+      uke.push({
+        dato,
+        middag: modus === "fyll" ? (laast.get(dato) ?? null) : null,
+      });
+    }
+    const brukteIUken = new Set(
+      modus === "fyll" ? [...laast.values()].map((middag) => middag.id) : [],
+    );
+    const kandidater = middager.filter((middag) => !brukteIUken.has(middag.id));
+
+    const sisteBrukt = new Map<string, string>();
+    for (const plan of nyligePlaner) {
+      const forrige = sisteBrukt.get(plan.dinnerId);
+      if (forrige === undefined || forrige < plan.plannedOn) {
+        sisteBrukt.set(plan.dinnerId, plan.plannedOn);
+      }
+    }
+
+    const valg = lagUkesmeny({ uke, kandidater, sisteBrukt });
+    if (valg.length === 0) {
+      return { ok: false, melding: "Uken er allerede full." };
+    }
+    await planleggMiddager(valg);
+    antall = valg.length;
+  } catch (feil) {
+    // Generisk melding i UI; detaljer kun i serverloggen.
+    console.error("Ukesmeny feilet:", feil);
+    return { ok: false, melding: "Kunne ikke lage ukesmeny. Prøv igjen." };
+  }
+
+  revalidatePath("/mat");
+  return {
+    ok: true,
+    melding:
+      antall === 7
+        ? "Ukesmeny laget."
+        : `Ukesmeny laget – ${antall} ${antall === 1 ? "dag" : "dager"} fylt.`,
+  };
+}
+
 // Kalles imperativt fra MiddagSkjema (React 19 server function) for
 // matvare-mappingen – returnerer data, ikke ActionResultat. Lesing er
 // beskyttet av auth/RLS som alt annet (server-klienten leser cookies).
 export async function sokMatvarerAction(
   sok: unknown,
 ): Promise<
-  | { ok: true; matvarer: { id: string; name: string; kcalPer100g: number }[] }
+  | {
+      ok: true;
+      matvarer: {
+        id: string;
+        name: string;
+        kcalPer100g: number;
+        proteinPer100g: number | null;
+      }[];
+    }
   | { ok: false; melding: string }
 > {
   if (typeof sok !== "string" || sok.trim().length < 2) {
@@ -298,11 +390,147 @@ export async function sokMatvarerAction(
         id: matvare.id,
         name: matvare.name,
         kcalPer100g: matvare.kcalPer100g,
+        proteinPer100g: matvare.proteinPer100g,
       })),
     };
   } catch (feil) {
     // Generisk melding i UI; detaljer kun i serverloggen.
     console.error("Matvaresøk feilet:", feil);
     return { ok: false, melding: "Søket feilet. Prøv igjen." };
+  }
+}
+
+// --- Oda-kurven -----------------------------------------------------------
+
+// Callback-URL-en avledes av requesten så lokal utvikling og hosting
+// fungerer uten konfig. Oda krever at den er registrert på klienten.
+async function odaRedirectUri(): Promise<string> {
+  const h = await headers();
+  const host = h.get("x-forwarded-host") ?? h.get("host");
+  if (host === null) {
+    throw new Error("Fant ikke host-header.");
+  }
+  const proto =
+    h.get("x-forwarded-proto") ??
+    (host.startsWith("localhost") || host.startsWith("127.") ? "http" : "https");
+  return `${proto}://${host}/oda/callback`;
+}
+
+// Starter OAuth-flyten: registrerer appen som klient hos Oda, legger
+// state + PKCE-verifier i en kortlivet cookie og sender brukeren til
+// Odas samtykkeside. redirect() må stå utenfor try (kaster NEXT_REDIRECT).
+export async function kobleTilOdaAction(): Promise<void> {
+  let autorisasjonsUrl: string;
+  try {
+    const redirectUri = await odaRedirectUri();
+    const clientId = await registrerOdaKlient(redirectUri);
+    const { verifier, challenge } = lagPkce();
+    const state = lagState();
+    await lagreOdaFlyt({ state, verifier, clientId, redirectUri });
+    autorisasjonsUrl = await byggOdaAutorisasjonsUrl({
+      clientId,
+      redirectUri,
+      state,
+      challenge,
+    });
+  } catch (feil) {
+    // Generisk melding i UI; detaljer kun i serverloggen.
+    console.error("Oda-tilkobling kunne ikke startes:", feil);
+    redirect(feil instanceof OdaKonfigMangler ? "/mat?oda=konfig" : "/mat?oda=feil");
+  }
+  redirect(autorisasjonsUrl);
+}
+
+export async function kobleFraOdaAction(): Promise<void> {
+  await slettOdaTilkobling();
+  revalidatePath("/mat");
+}
+
+// Legger ukens Oda-oppskrifter i kurven (MCP manipulate_cart) med
+// middagens porsjonstall. Tokenet fornyes ved behov; avvist token sletter
+// tilkoblingen så knappen blir «Koble til Oda» igjen.
+export async function leggIOdaKurvAction(
+  _forrige: ActionResultat | undefined,
+  formData: FormData,
+): Promise<ActionResultat> {
+  const ukeRaa = String(formData.get("mandag") ?? "").trim();
+  if (!erGyldigIsoDato(ukeRaa)) {
+    return { ok: false, melding: "Ugyldig uke." };
+  }
+  const mandag = mandagFor(ukeRaa);
+
+  let tilkobling = await lesOdaTilkobling();
+  if (tilkobling === null) {
+    return { ok: false, melding: "Koble til Oda først." };
+  }
+
+  try {
+    const [middager, planer] = await Promise.all([
+      getMiddager(),
+      getUkesplan(mandag, skiftDager(mandag, 6)),
+    ]);
+    const middagPerId = new Map(middager.map((middag) => [middag.id, middag]));
+    const ukens = planer
+      .map((plan) => middagPerId.get(plan.dinnerId))
+      .filter((middag) => middag !== undefined);
+    const medOda = ukens.filter((middag) => middag.odaRecipeId !== null);
+    const utenOda = ukens.filter((middag) => middag.odaRecipeId === null);
+    if (medOda.length === 0) {
+      return {
+        ok: false,
+        melding:
+          ukens.length === 0
+            ? "Ingen middager er planlagt denne uken."
+            : "Ingen av ukens middager har Oda-oppskrift.",
+      };
+    }
+
+    // Forny tokenet i god tid før det utløper.
+    if (tilkobling.expiresAt < Date.now() + 60_000) {
+      if (tilkobling.refreshToken === null) {
+        throw new OdaIkkeAutorisert();
+      }
+      const nytt = await fornyOdaToken({
+        clientId: tilkobling.clientId,
+        refreshToken: tilkobling.refreshToken,
+      });
+      tilkobling = {
+        clientId: tilkobling.clientId,
+        accessToken: nytt.accessToken,
+        refreshToken: nytt.refreshToken ?? tilkobling.refreshToken,
+        expiresAt: nytt.expiresAt,
+      };
+      await lagreOdaTilkobling(tilkobling);
+    }
+
+    const kurv = await kallOdaVerktoy(tilkobling.accessToken, "manipulate_cart", {
+      operations: medOda.map((middag) => ({
+        recipeId: Number(middag.odaRecipeId),
+        quantity: 1,
+        fromRecipePortions: middag.servings,
+      })),
+    });
+    const kurvUrl =
+      kurv !== null && typeof kurv === "object" && "url" in kurv && typeof kurv.url === "string"
+        ? kurv.url
+        : null;
+
+    const melding =
+      `${medOda.length} ${medOda.length === 1 ? "rett" : "retter"} lagt i Oda-kurven.` +
+      (utenOda.length > 0
+        ? ` Uten Oda-oppskrift: ${utenOda.map((middag) => middag.title).join(", ")}.`
+        : "");
+    return kurvUrl === null
+      ? { ok: true, melding }
+      : { ok: true, melding, lenke: { href: kurvUrl, tekst: "Åpne kurven hos Oda" } };
+  } catch (feil) {
+    if (feil instanceof OdaIkkeAutorisert) {
+      await slettOdaTilkobling();
+      revalidatePath("/mat");
+      return { ok: false, melding: "Oda-koblingen er utløpt – koble til på nytt." };
+    }
+    // Generisk melding i UI; detaljer kun i serverloggen.
+    console.error("Oda-kurv feilet:", feil);
+    return { ok: false, melding: "Kunne ikke legge i Oda-kurven. Prøv igjen." };
   }
 }

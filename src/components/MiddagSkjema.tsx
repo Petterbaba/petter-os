@@ -8,7 +8,13 @@ import { SkjemaFelt } from "./skjema/SkjemaFelt";
 import { SkjemaTekstFelt } from "./skjema/SkjemaTekstFelt";
 import { LagreKnappAnimert } from "./skjema/LagreKnappAnimert";
 
-type ValgtMatvare = { id: string; name: string; kcalPer100g: number };
+// Verdiene er per 100 g (Matvaretabellen); protein kan mangle i kilden.
+type ValgtMatvare = {
+  id: string;
+  name: string;
+  kcalPer100g: number;
+  proteinPer100g: number | null;
+};
 
 type IngrediensRad = {
   nokkel: number; // stabil React-key uavhengig av posisjon
@@ -33,6 +39,7 @@ function tilRader(middag: Dinner | undefined): IngrediensRad[] {
             id: rad.foodItem.id,
             name: rad.foodItem.name,
             kcalPer100g: rad.foodItem.kcalPer100g,
+            proteinPer100g: rad.foodItem.proteinPer100g,
           },
   }));
 }
@@ -256,6 +263,15 @@ export function MiddagSkjema({
   );
 }
 
+// «106 kcal · 22 g protein» per 100 g – samme streng i trefflisten og
+// på den valgte koblingen, så tallene kan sammenlignes rett av.
+function per100g(matvare: ValgtMatvare): string {
+  const kcal = `${Math.round(matvare.kcalPer100g)} kcal`;
+  return matvare.proteinPer100g === null
+    ? kcal
+    : `${kcal} · ${Math.round(matvare.proteinPer100g)} g protein`;
+}
+
 // Kobler ingrediensen til en matvare fra Matvaretabellen – koblingen (og
 // grammengden) er det som gjør at raden teller i næringsberegningen.
 // Søket kaller server-funksjonen imperativt (React 19); Enter i søkefeltet
@@ -290,9 +306,9 @@ function MatvareVelger({
       <p className="mt-1.5 flex items-baseline gap-2 text-xs">
         <span className="min-w-0 break-words text-ink-2">
           → {matvare.name}
-          <span className="text-ink-3">
+          <span className="tabular-nums text-ink-3">
             {" "}
-            · {Math.round(matvare.kcalPer100g)} kcal/100 g
+            · {per100g(matvare)} per 100 g
           </span>
         </span>
         <button
@@ -335,22 +351,28 @@ function MatvareVelger({
       </div>
       {melding && <p className="mt-1 text-xs text-ink-3">{melding}</p>}
       {treff !== null && treff.length > 0 && (
-        <ul className="mt-1 max-h-40 overflow-y-auto rounded-lg border border-edge">
-          {treff.map((kandidat) => (
-            <li key={kandidat.id} className="border-t border-edge first:border-t-0">
-              <button
-                type="button"
-                onClick={() => onVelg(kandidat)}
-                className="flex w-full items-baseline justify-between gap-3 px-3 py-1.5 text-left text-xs text-ink-2 transition-colors hover:bg-bg/60 hover:text-ink"
-              >
-                <span className="min-w-0 break-words">{kandidat.name}</span>
-                <span className="shrink-0 tabular-nums text-ink-3">
-                  {Math.round(kandidat.kcalPer100g)} kcal
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
+        <div className="mt-1 rounded-lg border border-edge">
+          <p className="flex justify-between gap-3 border-b border-edge px-3 py-1 text-[0.65rem] uppercase tracking-widest text-ink-3">
+            <span>Matvare</span>
+            <span>per 100 g</span>
+          </p>
+          <ul className="max-h-48 overflow-y-auto">
+            {treff.map((kandidat) => (
+              <li key={kandidat.id} className="border-t border-edge first:border-t-0">
+                <button
+                  type="button"
+                  onClick={() => onVelg(kandidat)}
+                  className="flex w-full items-baseline justify-between gap-3 px-3 py-1.5 text-left text-xs text-ink-2 transition-colors hover:bg-bg/60 hover:text-ink"
+                >
+                  <span className="min-w-0 break-words">{kandidat.name}</span>
+                  <span className="shrink-0 tabular-nums text-ink-3">
+                    {per100g(kandidat)}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </div>
   );
