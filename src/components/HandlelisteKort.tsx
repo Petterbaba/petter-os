@@ -3,9 +3,11 @@
 import type { Dinner, DinnerPlan } from "@/lib/types";
 import { formatTall } from "@/lib/format";
 import { aggregerHandleliste } from "@/lib/ernaering";
+import { UtvidPil } from "./UtvidPil";
 
-// Aggregert handleliste for ukens planlagte middager – ren visning av
-// aggregerHandleliste (like ingredienser slås sammen på tvers av retter).
+// Aggregert handleliste for ukens planlagte middager – ett utvidbart kort:
+// lukket viser antall varer og retter, åpnet selve listen (ren visning av
+// aggregerHandleliste; like ingredienser slås sammen på tvers av retter).
 // Kurv-fylling hos Oda skjer i Claude-økt, ikke herfra.
 export function HandlelisteKort({
   planer,
@@ -15,14 +17,24 @@ export function HandlelisteKort({
   middager: Dinner[];
 }) {
   const linjer = aggregerHandleliste(planer, middager);
+  const middagIder = new Set(middager.map((middag) => middag.id));
+  const antallRetter = planer.filter((plan) => middagIder.has(plan.dinnerId)).length;
 
   return (
-    <section className="rounded-xl border border-edge bg-card">
-      <div className="px-4 py-3 sm:px-5">
+    <details className="group rounded-xl border border-edge bg-card transition-colors hover:border-axis">
+      <summary className="flex cursor-pointer list-none items-baseline gap-3 rounded-xl px-4 py-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:px-5 [&::-webkit-details-marker]:hidden">
         <h2 className="text-xs font-medium uppercase tracking-widest text-ink-3">
           Handleliste
         </h2>
-      </div>
+        <p className="min-w-0 flex-1 text-xs tabular-nums text-ink-2">
+          {linjer.length === 0
+            ? "ingen planlagte middager"
+            : `${linjer.length} ${linjer.length === 1 ? "vare" : "varer"} · ${antallRetter} ${
+                antallRetter === 1 ? "rett" : "retter"
+              }`}
+        </p>
+        <UtvidPil className="self-center" />
+      </summary>
 
       {linjer.length === 0 ? (
         <p className="border-t border-edge px-4 py-4 text-sm text-ink-3 sm:px-5">
@@ -50,6 +62,6 @@ export function HandlelisteKort({
           ))}
         </ul>
       )}
-    </section>
+    </details>
   );
 }

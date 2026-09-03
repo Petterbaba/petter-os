@@ -50,6 +50,7 @@ Driftsdokumentasjon («hvordan gjør jeg …») bor i wikien `docs/` – se
 - Nøkler: KUN publishable key i appen (`.env.local`, mal i `.env.example`).
   `SUPABASE_DB_URL` (Session pooler) brukes kun av `scripts/backup.sh` og
   `scripts/synk-matvaretabellen.mjs`. Service role-nøkkelen brukes aldri.
+  `ODA_COOKIE_SECRET` (min. 32 tegn) krypterer Oda-tilkoblings-cookien.
 
 ## Datalag (kontrakt/implementasjon-skille)
 
@@ -118,7 +119,8 @@ Driftsdokumentasjon («hvordan gjør jeg …») bor i wikien `docs/` – se
 
 ## Input-mønster (server actions)
 
-- Server actions + `useActionState`; ikke API-routes, ikke optimistisk UI,
+- Server actions + `useActionState`; ikke API-routes (eneste unntak:
+  OAuth-callbacken `/oda/callback`), ikke optimistisk UI,
   ikke zod (revurderes ved økt-logging i fase 3 – tredje skjema avgjør evt.
   abstraksjon).
 - Delt: `ActionResultat` (`src/lib/actions.ts`),
@@ -189,7 +191,8 @@ Driftsdokumentasjon («hvordan gjør jeg …») bor i wikien `docs/` – se
 `/metrikker` (vekt-input + kurve) · `/mat` (ukesplan + middagskatalog +
 handleliste) · `/journal` · `/reiser` (klikkbart kart + skjema + liste) ·
 `/innstillinger` (konto/passordbytte) · `/logg-inn` (eneste uinnloggede
-side). Undersider bruker `SideHeader`.
+side) · `/oda/callback` (route handler, OAuth-retur fra Oda). Undersider
+bruker `SideHeader`.
 
 ## Reiser (Memory Bank)
 
@@ -273,14 +276,38 @@ side). Undersider bruker `SideHeader`.
   Delvis unik `(user_id, oda_recipe_id)` stopper dobbeltimport: 23505 →
   `MiddagAlleredeImportert` → «allerede importert» (journal-mønsteret).
 - Oda er kun utgangspunkt (Hardcover-prinsippet: fakta importeres som egne
-  redigerbare kopier): import og kurv-fylling skjer i Claude-økt via
-  Oda-MCP – appen har ingen lesebane mot Oda. Rutiner (inkl. gram-fellen i
-  Odas mengder): `docs/mat-synk-og-import.md`.
-- UI `/mat`: `UkesplanKort` (dag-selecter som lagrer ved endring;
-  ukenavigasjon via `?uke=`), `MatUtforsker` (dialog m/`MiddagSkjema` –
-  ingrediensradene er klient-state sendt som JSON i ett skjult felt,
-  matvaresøk via imperativt kalt server function), `HandlelisteKort`.
-  Mattilsynet-attribusjonen nederst på siden er et kildekrav og skal stå.
+  redigerbare kopier): import skjer i Claude-økt via Oda-MCP – appen har
+  ingen LESEBANE mot Oda. Én SKRIVEBANE finnes (sep. 2026): «Legg i
+  Oda-kurven» på `/mat` – appen er OAuth-klient mot Odas MCP-server
+  (`oda.com/mcp`; dynamisk klientregistrering + PKCE, public client, ingen
+  Oda-hemmelighet) og kaller `manipulate_cart` over HTTP med ukens
+  `oda_recipe_id` + `servings` (`src/lib/oda/{oauth,mcp,tilkobling}.ts`).
+  Tokens bor i en AES-GCM-kryptert httpOnly-cookie per nettleser (nøkkel
+  `ODA_COOKIE_SECRET`), ALDRI i DB. `/oda/callback` er appens eneste
+  route handler (OAuth krever GET-mål). Avvist token → cookie slettes →
+  «Koble til Oda» igjen. Rutiner (inkl. gram-fellen i Odas mengder):
+  `docs/mat-synk-og-import.md`.
+- UI `/mat` (sep. 2026, HelloFresh-modellen etter brukerens ønske –
+  kort som utvidet seg på stedet ble forkastet): `max-w-3xl`. Kortene
+  utvider seg ALDRI – de er klikkflater som åpner én native `<dialog>`
+  eid av `MatUtforsker` (fire innhold: `MiddagDetalj` = hele oppskriften
+  m/ næringstall og «Legg i ukesplanen»-dagknapper (én form per dag;
+  trykk på valgt dag fjerner), `DagVelger` = middagsliste m/«Velg» per
+  rett for en klikket dag (lukker ved lagring), samt ny/rediger via
+  `MiddagSkjema` – ingrediensradene er klient-state sendt som JSON i ett
+  skjult felt; matvaresøket viser kcal OG protein per 100 g per treff).
+  `UkesplanKort` = sju dagsruter + stiplet ukessum-kort (ukenavigasjon
+  via `?uke=`) med `UkesmenyKnapp`: «Lag ukesmeny» fyller ledige dager,
+  «Ny ukesmeny» (når uken er full) bytter alle sju – `lagUkesmenyAction`
+  henter katalog + ukens plan + siste fire uker og lagrer i ett upsert
+  (`planleggMiddager`); utvalget er ren logikk i `src/lib/ukesmeny.ts`
+  (ingen gjentakelse i uken, samme proteinkilde ikke to dager på rad,
+  nylig brukte retter straffes 14/28 dager, ellers tilfeldig;
+  proteinkilde avledes gram-vektet av ingrediensnavn, aldri lagret); `MiddagListe` = to-kolonners kortrutenett;
+  `HandlelisteKort` = ett `<details>`-kort (chevron: delt `UtvidPil`)
+  sendt inn som slot. Dialogen slår middagen opp på id fra ferske props
+  (aldri klikk-øyeblikksbildet). Mattilsynet-attribusjonen nederst på
+  siden er et kildekrav og skal stå.
 - Fremtidige utvidelser (egne migrasjoner): `meals`/`meal_items` + view
   `daily_nutrition` (full matlogging), egne per-bruker-matvarer. Uten
   migrasjon (parkert sep. 2026; tas etter middagsimporten):
@@ -317,9 +344,10 @@ side). Undersider bruker `SideHeader`.
    view `portfolio_history`. Nordnet/DNB-API som senere utvidelse.
 6. **Mat (fremskyndet som ukesplanlegger på brukerens ønske):**
    `food_items`, `dinners`, `dinner_ingredients`, `dinner_plans` på `/mat`;
-   se egen seksjon over. **KODE GJENNOMFØRT sep. 2026** (migrasjon
-   `20260901164829_mat`); synk-kjøring og Oda-import gjenstår (se
-   MAT-PLAN.md). Full matlogging (`meals`, `meal_items`, view
+   se egen seksjon over. **GJENNOMFØRT sep. 2026** (migrasjon
+   `20260901164829_mat`; synk kjørt 1. sep; 34 Oda-oppskrifter
+   importert 3. sep – umappede/antatte ingredienser står i hver
+   middags `notes`). Full matlogging (`meals`, `meal_items`, view
    `daily_nutrition`) bygges senere oppå samme grunnmur.
 7. **Eksport + herding:** `export_all()`-RPC + eksport-side, restore-test,
    full advisors-gjennomgang, hosting-sjekkliste.

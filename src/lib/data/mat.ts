@@ -325,6 +325,28 @@ export async function planleggMiddag(
   }
 }
 
+// Flere dager i ett kall (ukesmeny-generatoren) – samme upsert-nøkkel som
+// planleggMiddag, så eksisterende valg de dagene byttes ut.
+export async function planleggMiddager(
+  planer: { plannedOn: string; dinnerId: string }[],
+): Promise<void> {
+  if (planer.length === 0) {
+    return;
+  }
+  const supabase = await opprettServerKlient();
+  const { error } = await supabase.from("dinner_plans").upsert(
+    planer.map((plan) => ({
+      planned_on: plan.plannedOn,
+      dinner_id: plan.dinnerId,
+    })),
+    { onConflict: "user_id,planned_on" },
+  );
+
+  if (error) {
+    throw new Error(`Kunne ikke lagre ukesmenyen: ${error.message}`);
+  }
+}
+
 // Bevisst idempotent (avvik fra trips/journal-slettingene): «sett dagen
 // til ingen middag» skal lykkes også når planen alt er borte – dag-
 // selecten i ukesplanen kan ellers feile på et kappløp med seg selv.
