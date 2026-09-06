@@ -13,9 +13,11 @@ import {
   oppdaterMiddag,
   planleggMiddag,
   sokMatvarer,
+  sokOdaProdukter,
   type NyIngrediens,
 } from "@/lib/data/mat";
 import { erGyldigIsoDato, parseNorskTall } from "@/lib/validering";
+import { erEnhet } from "@/lib/enheter";
 import { mandagFor, skiftDager } from "@/lib/dato";
 import { lagUkesmeny } from "@/lib/ukesmeny";
 import {
@@ -35,7 +37,7 @@ import {
 } from "@/lib/oda/tilkobling";
 import type { ActionResultat } from "@/lib/actions";
 
-// DB håndhever det generiske (ikke-tom tittel, porsjoner > 0, gram > 0);
+// DB håndhever det generiske (ikke-tom tittel, porsjoner > 0, mengde > 0);
 // presise grenser og meldinger bor her (reise-mønsteret).
 const MAKS_TITTEL = 200;
 const MAKS_TEKST = 20_000;
@@ -44,7 +46,7 @@ const MAKS_ODA_ID = 50;
 const MAKS_PORSJONER = 50;
 const MAKS_INGREDIENSER = 100;
 const MAKS_INGREDIENS_NAVN = 200;
-const MAKS_GRAM = 100_000;
+const MAKS_MENGDE = 100_000;
 const MAKS_SOK = 100;
 const UUID_MONSTER =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -79,7 +81,9 @@ function parseIngredienser(
     const post = rad as Record<string, unknown>;
     const label = typeof post.label === "string" ? post.label.trim() : "";
     const mengdeRaa = typeof post.mengde === "string" ? post.mengde.trim() : "";
+    const enhetRaa = typeof post.enhet === "string" ? post.enhet : "";
     const foodItemId = post.foodItemId;
+    const odaProduktId = post.odaProduktId;
 
     if (label === "") {
       return { ok: false, melding: "Hver ingrediens må ha et navn." };
@@ -90,29 +94,43 @@ function parseIngredienser(
         melding: `Ingrediensnavn kan være maks ${MAKS_INGREDIENS_NAVN} tegn.`,
       };
     }
+    if (!erEnhet(enhetRaa)) {
+      // Manipulert felt – selecten tilbyr kun gyldige enheter.
+      return { ok: false, melding: "Kunne ikke lagre middagen. Prøv igjen." };
+    }
 
-    let gram: number | null = null;
+    let mengde: number | null = null;
     if (mengdeRaa !== "") {
       const tall = parseNorskTall(mengdeRaa);
       if (tall === null || tall <= 0) {
         return {
           ok: false,
-          melding: `Mengden for «${label}» må være gram (et tall over 0) – eller stå tom for «etter smak».`,
+          melding: `Mengden for «${label}» må være et tall over 0 – eller stå tom for «etter smak».`,
         };
       }
-      if (tall > MAKS_GRAM) {
+      if (tall > MAKS_MENGDE) {
         return { ok: false, melding: `Mengden for «${label}» er urimelig stor.` };
       }
-      gram = Math.round(tall * 10) / 10;
+      mengde = Math.round(tall * 10) / 10;
     }
 
     if (foodItemId !== null && (typeof foodItemId !== "string" || !UUID_MONSTER.test(foodItemId))) {
       return { ok: false, melding: "Kunne ikke lagre middagen. Prøv igjen." };
     }
+    // Oda-produkt-id-er er heltall hos kilden; lagres som tekst
+    // (oda_recipe_id-presedensen).
+    if (
+      odaProduktId !== null &&
+      (typeof odaProduktId !== "string" || !/^\d{1,20}$/.test(odaProduktId))
+    ) {
+      return { ok: false, melding: "Kunne ikke lagre middagen. Prøv igjen." };
+    }
 
     ingredienser.push({
       label,
-      amountGrams: gram,
+      amount: mengde,
+      unit: enhetRaa,
+      odaProductId: odaProduktId === null ? null : (odaProduktId as string),
       foodItemId: foodItemId === null ? null : (foodItemId as string),
     });
   }
@@ -400,6 +418,85 @@ export async function sokMatvarerAction(
   }
 }
 
+// --- Oda-tilkoblingen -----------------------------------------------------
+
+// Leser tilkoblingen og fornyer tokenet i god tid før det utløper – delt
+// mellom kurv-knappen og produktsøket. null = ikke koblet til; kaster
+// OdaIkkeAutorisert når fornyelse er umulig (fanges av kallstedene).
+async function gyldigOdaTilkobling() {
+  let tilkobling = await lesOdaTilkobling();
+  if (tilkobling === null) {
+    return null;
+  }
+  if (tilkobling.expiresAt < Date.now() + 60_000) {
+    if (tilkobling.refreshToken === null) {
+      throw new OdaIkkeAutorisert();
+    }
+    const nytt = await fornyOdaToken({
+      clientId: tilkobling.clientId,
+      refreshToken: tilkobling.refreshToken,
+    });
+    tilkobling = {
+      clientId: tilkobling.clientId,
+      accessToken: nytt.accessToken,
+      refreshToken: nytt.refreshToken ?? tilkobling.refreshToken,
+      expiresAt: nytt.expiresAt,
+    };
+    await lagreOdaTilkobling(tilkobling);
+  }
+  return tilkobling;
+}
+
+// Ett produkttreff fra den LOKALE Oda-katalogen. Prisene er katalogens
+// tidsstemplede cache og VISES kun – raden lagrer bare produkt-id-en som
+// kildereferanse (oda_recipe_id-presedensen).
+export type OdaProduktTreff = {
+  id: string;
+  name: string;
+  brand: string | null;
+  description: string; // pakkebeskrivelse («2 stk, 375 g»)
+  price: number | null;
+  unitPrice: number | null; // kr per enhet under
+  unitPriceUnit: string | null; // «kg», «l», «stk»
+};
+
+// Kalles imperativt fra MiddagSkjema (autosøk med debounce): søker i den
+// LOKALE katalogen (oda_products, speilet nattlig av synk-scriptet) –
+// raskt, stabilt og uten Oda-innlogging, i motsetning til MCP-søket
+// dette erstattet (matflyt-planen, 6. sep 2026).
+export async function sokOdaProdukterAction(
+  sok: unknown,
+): Promise<
+  { ok: true; produkter: OdaProduktTreff[] } | { ok: false; melding: string }
+> {
+  if (typeof sok !== "string" || sok.trim().length < 2) {
+    return { ok: false, melding: "Skriv minst to tegn." };
+  }
+  if (sok.length > MAKS_SOK) {
+    return { ok: false, melding: "Søket er for langt." };
+  }
+
+  try {
+    const produkter = await sokOdaProdukter(sok);
+    return {
+      ok: true,
+      produkter: produkter.map((produkt) => ({
+        id: produkt.id,
+        name: produkt.name,
+        brand: produkt.brand,
+        description: produkt.nameExtra ?? "",
+        price: produkt.grossPrice,
+        unitPrice: produkt.grossUnitPrice,
+        unitPriceUnit: produkt.unitPriceUnit,
+      })),
+    };
+  } catch (feil) {
+    // Generisk melding i UI; detaljer kun i serverloggen.
+    console.error("Oda-produktsøk feilet:", feil);
+    return { ok: false, melding: "Søket feilet. Prøv igjen." };
+  }
+}
+
 // --- Oda-kurven -----------------------------------------------------------
 
 // Callback-URL-en avledes av requesten så lokal utvikling og hosting
@@ -446,9 +543,48 @@ export async function kobleFraOdaAction(): Promise<void> {
   revalidatePath("/mat");
 }
 
+// Oppskrifts-idene som allerede ligger i kurven (grupper med groupType
+// "recipes" i get_cart-svaret). Tolerant parsing – uventet form gir tomt
+// sett, og alt forsøkes da lagt til som før.
+function oppskrifterIKurv(kurv: unknown): Set<string> {
+  const sett = new Set<string>();
+  const grupper =
+    kurv !== null && typeof kurv === "object"
+      ? (kurv as Record<string, unknown>).groups
+      : null;
+  if (!Array.isArray(grupper)) {
+    return sett;
+  }
+  for (const gruppe of grupper) {
+    if (gruppe === null || typeof gruppe !== "object") {
+      continue;
+    }
+    const post = gruppe as Record<string, unknown>;
+    if (post.groupType === "recipes" && typeof post.id === "number") {
+      sett.add(String(post.id));
+    }
+  }
+  return sett;
+}
+
+function hentKurvUrl(kurv: unknown): string | null {
+  return kurv !== null &&
+    typeof kurv === "object" &&
+    "url" in kurv &&
+    typeof kurv.url === "string"
+    ? kurv.url
+    : null;
+}
+
 // Legger ukens Oda-oppskrifter i kurven (MCP manipulate_cart) med
 // middagens porsjonstall. Tokenet fornyes ved behov; avvist token sletter
 // tilkoblingen så knappen blir «Koble til Oda» igjen.
+//
+// Odas server 500-er på store operasjonsbatcher (observert med ukens
+// 6 retter i ett kall, sep. 2026; enkeltvis gikk fint), så rettene
+// legges én og én. Kurven leses FØRST og retter som alt ligger der
+// hoppes over – knappen er dermed idempotent: et nytt trykk etter en
+// delvis feil legger kun til det som mangler, aldri dobbelt.
 export async function leggIOdaKurvAction(
   _forrige: ActionResultat | undefined,
   formData: FormData,
@@ -459,12 +595,11 @@ export async function leggIOdaKurvAction(
   }
   const mandag = mandagFor(ukeRaa);
 
-  let tilkobling = await lesOdaTilkobling();
-  if (tilkobling === null) {
-    return { ok: false, melding: "Koble til Oda først." };
-  }
-
   try {
+    const tilkobling = await gyldigOdaTilkobling();
+    if (tilkobling === null) {
+      return { ok: false, melding: "Koble til Oda først." };
+    }
     const [middager, planer] = await Promise.all([
       getMiddager(),
       getUkesplan(mandag, skiftDager(mandag, 6)),
@@ -485,41 +620,72 @@ export async function leggIOdaKurvAction(
       };
     }
 
-    // Forny tokenet i god tid før det utløper.
-    if (tilkobling.expiresAt < Date.now() + 60_000) {
-      if (tilkobling.refreshToken === null) {
-        throw new OdaIkkeAutorisert();
+    const kurvFor = await kallOdaVerktoy(tilkobling.accessToken, "get_cart", {});
+    const iKurven = oppskrifterIKurv(kurvFor);
+    const fraFor = medOda.filter((middag) =>
+      iKurven.has(String(middag.odaRecipeId)),
+    );
+    const mangler = medOda.filter(
+      (middag) => !iKurven.has(String(middag.odaRecipeId)),
+    );
+
+    let sisteKurv: unknown = kurvFor;
+    let lagtTil = 0;
+    const feilede: string[] = [];
+    for (const middag of mangler) {
+      try {
+        sisteKurv = await kallOdaVerktoy(
+          tilkobling.accessToken,
+          "manipulate_cart",
+          {
+            operations: [
+              {
+                recipeId: Number(middag.odaRecipeId),
+                quantity: 1,
+                fromRecipePortions: middag.servings,
+              },
+            ],
+          },
+        );
+        lagtTil += 1;
+      } catch (feil) {
+        if (feil instanceof OdaIkkeAutorisert) {
+          throw feil;
+        }
+        // Én rett som feiler skal ikke stoppe resten – navnet meldes
+        // tilbake, og et nytt trykk prøver kun den på nytt.
+        console.error(`Oda-kurv: «${middag.title}» feilet:`, feil);
+        feilede.push(middag.title);
       }
-      const nytt = await fornyOdaToken({
-        clientId: tilkobling.clientId,
-        refreshToken: tilkobling.refreshToken,
-      });
-      tilkobling = {
-        clientId: tilkobling.clientId,
-        accessToken: nytt.accessToken,
-        refreshToken: nytt.refreshToken ?? tilkobling.refreshToken,
-        expiresAt: nytt.expiresAt,
-      };
-      await lagreOdaTilkobling(tilkobling);
     }
 
-    const kurv = await kallOdaVerktoy(tilkobling.accessToken, "manipulate_cart", {
-      operations: medOda.map((middag) => ({
-        recipeId: Number(middag.odaRecipeId),
-        quantity: 1,
-        fromRecipePortions: middag.servings,
-      })),
-    });
-    const kurvUrl =
-      kurv !== null && typeof kurv === "object" && "url" in kurv && typeof kurv.url === "string"
-        ? kurv.url
-        : null;
+    const deler: string[] = [];
+    if (lagtTil > 0) {
+      deler.push(
+        `${lagtTil} ${lagtTil === 1 ? "rett" : "retter"} lagt i Oda-kurven.`,
+      );
+    } else if (feilede.length === 0) {
+      deler.push("Ukens retter ligger allerede i Oda-kurven.");
+    }
+    if (lagtTil > 0 && fraFor.length > 0) {
+      deler.push(
+        `${fraFor.length} lå der fra før.`,
+      );
+    }
+    if (feilede.length > 0) {
+      deler.push(`Feilet hos Oda: ${feilede.join(", ")} – prøv igjen.`);
+    }
+    if (utenOda.length > 0) {
+      deler.push(
+        `Uten Oda-oppskrift: ${utenOda.map((middag) => middag.title).join(", ")}.`,
+      );
+    }
 
-    const melding =
-      `${medOda.length} ${medOda.length === 1 ? "rett" : "retter"} lagt i Oda-kurven.` +
-      (utenOda.length > 0
-        ? ` Uten Oda-oppskrift: ${utenOda.map((middag) => middag.title).join(", ")}.`
-        : "");
+    const melding = deler.join(" ");
+    if (feilede.length > 0) {
+      return { ok: false, melding };
+    }
+    const kurvUrl = hentKurvUrl(sisteKurv);
     return kurvUrl === null
       ? { ok: true, melding }
       : { ok: true, melding, lenke: { href: kurvUrl, tekst: "Åpne kurven hos Oda" } };

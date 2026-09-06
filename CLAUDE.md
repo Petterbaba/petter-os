@@ -25,7 +25,12 @@ Driftsdokumentasjon («hvordan gjør jeg …») bor i wikien `docs/` – se
   eu-north-1, free tier. NB: free tier auto-pauser etter ~1 ukes inaktivitet
   og har ingen automatiske backups (se Backup).
 - `@supabase/ssr` + `@supabase/supabase-js` er de eneste dataavhengighetene.
-- Kjøres lokalt med `npm run dev`; hosting er ikke besluttet.
+- Kjøres lokalt med `npm run dev`. Hosting BESLUTTET (sep. 2026, ikke
+  satt opp ennå – gjøres i fase 7): appen på Vercel Hobby (auto-deploy
+  fra main, preview per PR; `maxDuration` må opp for kurv-actionen),
+  nattlig katalogsynk via GitHub Actions (offentlig repo = gratis;
+  `SUPABASE_DB_URL` kun som Actions-secret). Ev. eget domene via
+  Cloudflare-DNS (Petter kjenner det fra før).
 
 ## Viktig: git
 
@@ -48,8 +53,10 @@ Driftsdokumentasjon («hvordan gjør jeg …») bor i wikien `docs/` – se
   (validerer token), aldri `getSession()`, i proxy/server.
 - Klient-fabrikk: `src/lib/supabase/server.ts`.
 - Nøkler: KUN publishable key i appen (`.env.local`, mal i `.env.example`).
-  `SUPABASE_DB_URL` (Session pooler) brukes kun av `scripts/backup.sh` og
-  `scripts/synk-matvaretabellen.mjs`. Service role-nøkkelen brukes aldri.
+  `SUPABASE_DB_URL` (Session pooler) brukes kun av `scripts/backup.sh`,
+  `scripts/synk-matvaretabellen.mjs` og `scripts/synk-oda.mjs` (samt som
+  GitHub Actions-secret for nattsynken). Service role-nøkkelen brukes
+  aldri.
   `ODA_COOKIE_SECRET` (min. 32 tegn) krypterer Oda-tilkoblings-cookien.
 
 ## Datalag (kontrakt/implementasjon-skille)
@@ -257,31 +264,60 @@ bruker `SideHeader`.
 
 ## Mat (ukesplanlegger)
 
-- Fire tabeller (migrasjon `20260901164829_mat`): **`food_items`** – DELT
+- Fem tabeller (migrasjon `20260901164829_mat` + `20260906133958`):
+  **`oda_products`** – DELT referansedata speilet fra Odas ÅPNE
+  nettside-API (uoffisielt, uten auth; sitemap-enumerering, ~6 600
+  varer). Ingen user_id – kun select-policy; skriving KUN via
+  `npm run synk:oda` (`scripts/synk-oda.mjs`, direkte DB-tilkobling;
+  `--dry-run` finnes), kjørt nattlig av GitHub Actions
+  (`.github/workflows/synk-oda.yml`, secret `SUPABASE_DB_URL`).
+  Prisene er TIDSSTEMPLET CACHE (`synced_at`) til søkevisning – ferske
+  priser hentes live ved handleforslag (fase 3); ferskheten vises
+  nederst på `/mat`. **`food_items`** – DELT
   referansedata synket fra Matvaretabellen (Mattilsynet; ~2 120 matvarer,
   verdier per 100 g + porsjonsvekter i jsonb). Ingen user_id – kun
   select-policy for innloggede; skriving KUN via `npm run synk:mat`
   (direkte DB-tilkobling som backup-scriptet; `--dry-run` finnes). Upsert
   på `source_id`; borte fra kilden = arkivert. **`dinners`** – per-bruker
   katalog (`servings`, fremgangsmåte, `oda_recipe_id`/`source_url` som
-  kildereferanse). **`dinner_ingredients`** – gram + nullbar mapping mot
-  food_items. **`dinner_plans`** – én middag per (bruker, dag).
+  kildereferanse). **`dinner_ingredients`** – `amount` + `unit` (g, kg,
+  ml, dl, l, ss, ts, stk; migrasjon `20260906082750`) + nullbar
+  `oda_product_id` (kildereferanse fra produktsøket, migrasjon
+  `20260906090642`; åpner for produktbasert kurvfylling av egne retter
+  senere) + nullbar mapping
+  mot food_items; enhetslisten og gram-omregningen bor i
+  `src/lib/enheter.ts` (ren logikk: egen porsjonsvekt fra Matvaretabellen
+  – «desiliter»/«spiseskje»/«teskje»/«stk» – foretrekkes, volum avledes
+  ellers via tetthet fra en annen volumporsjon; stk krever porsjonsvekt).
+  **`dinner_plans`** – én middag per (bruker, dag).
 - Næring lagres ALDRI: kcal/makroer per porsjon beregnes i
   `src/lib/ernaering.ts` (maal.ts-presedensen) fra gram × verdier per
-  100 g – en ingrediens teller kun når BÅDE mapping og gram er satt
-  (dekningen «X av Y ingredienser» vises i UI). Handlelisten aggregeres
-  samme sted (`aggregerHandleliste`).
+  100 g – en ingrediens teller kun når BÅDE mapping er satt OG mengden
+  kan regnes om til gram via enheter.ts (dekningen «X av Y ingredienser»
+  vises i UI). Handlelisten aggregeres samme sted (`aggregerHandleliste`)
+  og summerer per ANGITT enhet («4 stk egg», aldri omregnet til gram –
+  man handler i oppskriftens enheter).
 - Upsert-nøkkel for ukesplanen: `(user_id, planned_on)` – nytt valg samme
   dag bytter middag (metrics-mønsteret; «Ingen» sletter idempotent).
   Delvis unik `(user_id, oda_recipe_id)` stopper dobbeltimport: 23505 →
   `MiddagAlleredeImportert` → «allerede importert» (journal-mønsteret).
+- **Brukerens prioritering (sep. 2026): planleggeren er primærfunksjonen
+  («man handler hos Oda»); næringstall er nice-to-have** – styrer alle
+  UX-avveininger på `/mat`.
 - Oda er kun utgangspunkt (Hardcover-prinsippet: fakta importeres som egne
-  redigerbare kopier): import skjer i Claude-økt via Oda-MCP – appen har
-  ingen LESEBANE mot Oda. Én SKRIVEBANE finnes (sep. 2026): «Legg i
-  Oda-kurven» på `/mat` – appen er OAuth-klient mot Odas MCP-server
+  redigerbare kopier): OPPSKRIFTSimport skjer i Claude-økt via Oda-MCP –
+  appen leser aldri fra Odas MCP (produktsøket gikk kortvarig dit 6. sep
+  2026, men ble flyttet til lokal katalog samme dag – MCP-serveren 500-et
+  for ofte). Appens ENESTE bane mot Odas MCP er SKRIVEBANEN «Legg i
+  Oda-kurven» på `/mat` – appen er
+  OAuth-klient mot Odas MCP-server
   (`oda.com/mcp`; dynamisk klientregistrering + PKCE, public client, ingen
   Oda-hemmelighet) og kaller `manipulate_cart` over HTTP med ukens
   `oda_recipe_id` + `servings` (`src/lib/oda/{oauth,mcp,tilkobling}.ts`).
+  NB: én rett per kall – Odas server 500-er på store operasjonsbatcher
+  (observert med 6 retter, sep. 2026) – og kurven leses først
+  (`get_cart`) så retter som alt ligger der hoppes over: knappen er
+  idempotent og dobler aldri ved nytt trykk.
   Tokens bor i en AES-GCM-kryptert httpOnly-cookie per nettleser (nøkkel
   `ODA_COOKIE_SECRET`), ALDRI i DB. `/oda/callback` er appens eneste
   route handler (OAuth krever GET-mål). Avvist token → cookie slettes →
@@ -295,7 +331,18 @@ bruker `SideHeader`.
   trykk på valgt dag fjerner), `DagVelger` = middagsliste m/«Velg» per
   rett for en klikket dag (lukker ved lagring), samt ny/rediger via
   `MiddagSkjema` – ingrediensradene er klient-state sendt som JSON i ett
-  skjult felt; matvaresøket viser kcal OG protein per 100 g per treff).
+  skjult felt. Nye rader starter i SØKEMODUS (sep. 2026 – fjernet
+  dobbeltarbeidet navn + kobling): AUTOSØK (delt `useAutosok`-hook:
+  debounce ~300 ms, ingen søkeknapp, ref-teller forkaster utdaterte
+  svar) mot den LOKALE `oda_products`-katalogen; treffet blir navnet +
+  `oda_product_id`, og Matvaretabellen-søket kjøres så automatisk på et
+  brand-strippet forslag fra produktnavnet slik at næringskoblingen
+  bare er ett klikk (og lett å ignorere).
+  «Bruk som navn uten kobling»-utveien dekker det katalogene ikke har;
+  navngitte rader viser redigerbart navnefelt + mengde + enhet-select
+  med koblingene under. Modusen er eksplisitt radstate (`navngitt`),
+  aldri avledet av teksten. Matvaresøket viser kcal OG protein per
+  100 g per treff). Dialogen er `max-w-2xl`.
   `UkesplanKort` = sju dagsruter + stiplet ukessum-kort (ukenavigasjon
   via `?uke=`) med `UkesmenyKnapp`: «Lag ukesmeny» fyller ledige dager,
   «Ny ukesmeny» (når uken er full) bytter alle sju – `lagUkesmenyAction`

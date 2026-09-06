@@ -1,0 +1,42 @@
+# Nattlig synk av Oda-katalogen til Supabase (matflyt-planen, fase 1).
+#
+# Slik virker GitHub Actions: på tidspunktet under spinner GitHub opp en
+# fersk Ubuntu-maskin i sin sky, sjekker ut dette repoet, kjører stegene
+# og kaster maskinen etterpå (Power BI-parallellen: scheduled refresh).
+# Gratis og uten minutt-tak for offentlige repoer. Loggen for hver
+# kjøring ligger under «Actions»-fanen på GitHub.
+#
+# FØR FØRSTE KJØRING: legg inn hemmeligheten i repoet på GitHub:
+# Settings → Secrets and variables → Actions → New repository secret,
+# navn SUPABASE_DB_URL, verdi = Session pooler-URL-en (samme som i
+# .env.local). Secrets maskeres i logger og er utilgjengelige for forks.
+
+name: Synk Oda-katalogen
+
+on:
+  schedule:
+    # Cron i UTC: 03:14 hver natt (≈ 04:14/05:14 norsk tid). Bevisst
+    # utenom hele klokketimer – de er rushtid på GitHubs delte kjøreplan.
+    - cron: "14 3 * * *"
+  # Gir en manuell «Run workflow»-knapp under Actions-fanen på GitHub.
+  workflow_dispatch:
+
+jobs:
+  synk:
+    runs-on: ubuntu-latest # GitHubs standard-VM; psql er forhåndsinstallert
+    timeout-minutes: 30 # sikkerhetsnett om Oda-API-et skulle henge
+    steps:
+      # Henter repoet inn på VM-en (scriptet ligger jo der).
+      - uses: actions/checkout@v4
+
+      # Pinner Node-versjonen så kjøringen er forutsigbar.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # Selve synken: sitemap → produktdata → upsert i oda_products.
+      # Scriptet bruker kun innebygde Node-moduler + psql, så ingen
+      # npm install trengs. Hemmeligheten injiseres som miljøvariabel.
+      - run: node scripts/synk-oda.mjs
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}

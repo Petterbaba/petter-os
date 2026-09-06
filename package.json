@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "backup": "bash scripts/backup.sh",
-    "synk:mat": "node scripts/synk-matvaretabellen.mjs"
+    "synk:mat": "node scripts/synk-matvaretabellen.mjs",
+    "synk:oda": "node scripts/synk-oda.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",

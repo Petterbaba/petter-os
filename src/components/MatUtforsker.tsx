@@ -110,7 +110,7 @@ export function MatUtforsker({
           }
         }}
         onClose={() => setInnhold(null)}
-        className="m-auto w-[calc(100%-2rem)] max-w-lg rounded-xl border border-edge bg-card p-0 text-ink backdrop:bg-black/60"
+        className="m-auto w-[calc(100%-2rem)] max-w-2xl rounded-xl border border-edge bg-card p-0 text-ink backdrop:bg-black/60"
       >
         {dialogInnhold}
       </dialog>

@@ -1,5 +1,9 @@
 import type { Metadata } from "next";
-import { getMiddager, getUkesplan } from "@/lib/data/mat";
+import {
+  getMiddager,
+  getOdaKatalogStatus,
+  getUkesplan,
+} from "@/lib/data/mat";
 import {
   dagerIPeriode,
   iDagOslo,
@@ -19,6 +23,12 @@ export const metadata: Metadata = {
   title: "Mat · petter-os",
 };
 
+// «Legg i Oda-kurven» gjør opptil 1 + 7 MCP-kall i sekvens (get_cart +
+// én rett per kall) og kan bruke 10–20 s – over Vercels standardgrense
+// for serverless-funksjoner. Gjelder hele ruten, inkl. actions den
+// rendrer (hosting-beslutningen 6. sep 2026).
+export const maxDuration = 60;
+
 // Ukedagsnavnene beregnes her på serveren og sendes som props: Node og
 // nettleser kan ha ulike CLDR-versjoner, og et avvik ville gitt
 // hydration-feil (jf. landnavn-kommentaren i ReiseUtforsker).
@@ -29,6 +39,14 @@ const ukedagKort = new Intl.DateTimeFormat("nb-NO", {
 const ukedagLang = new Intl.DateTimeFormat("nb-NO", {
   weekday: "long",
   timeZone: "UTC",
+});
+// Synk-tidspunktet er et timestamptz og vises i norsk tid.
+const synkFormat = new Intl.DateTimeFormat("nb-NO", {
+  day: "numeric",
+  month: "short",
+  hour: "2-digit",
+  minute: "2-digit",
+  timeZone: "Europe/Oslo",
 });
 
 export default async function Mat({
@@ -45,10 +63,11 @@ export default async function Mat({
     uke !== undefined && erGyldigIsoDato(uke) ? mandagFor(uke) : denneUken;
   const sondag = skiftDager(mandag, 6);
 
-  const [middager, planer, odaTilkobling] = await Promise.all([
+  const [middager, planer, odaTilkobling, katalog] = await Promise.all([
     getMiddager(),
     getUkesplan(mandag, sondag),
     lesOdaTilkobling(),
+    getOdaKatalogStatus(),
   ]);
 
   // Oda-kortet: hvilke av ukens retter som kan gå rett i kurven, og
@@ -113,6 +132,16 @@ export default async function Mat({
           Matvaretabellen
         </a>
         , Mattilsynet.
+      </p>
+      {/* Katalog-ferskheten synlig uten terminal (matflyt-planen). */}
+      <p className="mt-1 text-xs tabular-nums text-ink-3">
+        {katalog.antall === 0
+          ? "Oda-katalogen er tom – kjør npm run synk:oda."
+          : `Oda-katalog: ${katalog.antall.toLocaleString("nb-NO")} varer` +
+            (katalog.sistSynket === null
+              ? ""
+              : ` · synket ${synkFormat.format(new Date(katalog.sistSynket))}`) +
+            " · priser er øyeblikksbilder fra synken"}
       </p>
     </main>
   );

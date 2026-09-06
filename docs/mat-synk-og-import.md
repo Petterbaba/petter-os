@@ -35,6 +35,38 @@ alltid før en import-økt hvis katalogen er tom eller gammel.
 **Kildekrav:** Mattilsynet krever kildehenvisning – `/mat`-siden viser
 «Næringsdata: Matvaretabellen, Mattilsynet» og den skal bli stående.
 
+## Synke Oda-katalogen (oda_products)
+
+`oda_products` er delt referansedata speilet fra **Odas åpne
+nettside-API** (uoffisielt, uten innlogging – åpent siden
+Kolonial.no-tiden; kan endres uten varsel). Ingrediens-autosøket i
+middagsskjemaet går mot denne tabellen – aldri live mot Oda. Samme
+regler som food_items: ingen skrivepolicyer, skriving kun via script.
+
+**Kjøring** (samme forutsetninger som over):
+
+```bash
+npm run synk:oda -- --dry-run   # sitemap + 20 varer, uten å røre DB
+npm run synk:oda                # full synk (~6 600 varer, ~5 min)
+```
+
+Flyten: produkt-sitemapene enumererer alle id-ene → produktdata hentes
+skånsomt (4 parallelle, tydelig User-Agent, retry) → upsert på
+`source_id` → varer borte fra kilden arkiveres. Feiler mer enn 5 % av
+oppslagene, avbrytes synken uten å skrive noe (ellers ville
+arkiveringen spist varene vi ikke fikk hentet).
+
+**Når:** nattlig via GitHub Actions
+(`.github/workflows/synk-oda.yml`; secret `SUPABASE_DB_URL` må ligge i
+repoets Actions-innstillinger) – og manuelt ved behov, f.eks. hvis
+`/mat`-bunnteksten viser at katalogen er gammel eller tom.
+«Run workflow»-knappen under Actions-fanen på GitHub kjører den også.
+
+**NB om priser:** `gross_price`/`gross_unit_price` er en tidsstemplet
+cache (`synced_at`) til søkevisning og grovsortering. Handleforslag
+(fase 3) henter ferske priser live i kjøpsøyeblikket – cache-prisen er
+aldri beslutningsgrunnlag alene.
+
 ## Importere middager fra Oda
 
 Import skjer i en Claude-økt (Oda-integrasjonen er en MCP-server, ikke et
@@ -50,12 +82,16 @@ Rutinen per rett:
    ren ingrediensliste med mengder for 4 porsjoner («400 g Kyllingfilet»,
    «2 dl Kremfløte») pluss fremgangsmåten. Det var slik importen 3. sep
    2026 ble gjort.
-2. Konverter mengdene til gram (dl fløte/melk = 100 g, kokosmelk 95 g,
-   ss olje 10 g, fedd hvitløk 4 g, boil-in-bag-ris 125 g tørr per pose,
-   hermetiske kikerter 240 g avrent per boks; stk-vekter fra
-   `food_items.portions`). **Kjent felle:** Odas *middagslister*
+2. Behold oppskriftens egne enheter der appen støtter dem (sep. 2026:
+   `dinner_ingredients` har `amount` + `unit` – g, kg, ml, dl, l, ss,
+   ts, stk – og gram avledes av matvarens porsjonsvekter i
+   `src/lib/enheter.ts`). «2 dl Kremfløte» lagres altså som 2 dl.
+   Konverter til gram kun når enheten ikke støttes eller matvaren
+   mangler porsjonsvekt for den (kokosmelk-boks, boil-in-bag-ris 125 g
+   tørr per pose, hermetiske kikerter 240 g avrent per boks, fedd
+   hvitløk 4 g). **Kjent felle:** Odas *middagslister*
    (`get_product_list`) oppgir brøker av produktenheter («0,3 × 500 g-
-   pakke pasta»), ikke gram – bruk oppskriftssiden i stedet.
+   pakke pasta»), ikke mengder – bruk oppskriftssiden i stedet.
 3. Mapp hver ingrediens mot `food_items` (velg riktig variant – rå/kokt
    betyr mye for kcal). Petter godkjenner mappingen underveis.
 4. Lagre med Oda-id og oppskrifts-URL som kildereferanse. Dobbeltimport
@@ -68,8 +104,10 @@ Rutinen per rett:
    transaksjon med eksplisitt `user_id` (direkte DB-tilkobling omgår
    `auth.uid()`-defaulten).
 
-Retter utenfra Oda legges inn manuelt med «Ny middag» på `/mat` – samme
-skjema, med matvaresøk per ingrediensrad.
+Retter utenfra Oda legges inn manuelt med «Ny middag» på `/mat`. Nye
+ingrediensrader søker i Oda-katalogen (når nettleseren er koblet til
+Oda – ellers Matvaretabellen): treffet blir navnet + produktreferanse,
+og et Matvaretabellen-forslag kjøres automatisk for næringskoblingen.
 
 ## Handlekurv hos Oda
 

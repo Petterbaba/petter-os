@@ -21,35 +21,41 @@ export type Database = {
     Tables: {
       dinner_ingredients: {
         Row: {
-          amount_grams: number | null
+          amount: number | null
           created_at: string
           dinner_id: string
           food_item_id: string | null
           id: string
           label: string
+          oda_product_id: string | null
           position: number
+          unit: string
           updated_at: string
           user_id: string
         }
         Insert: {
-          amount_grams?: number | null
+          amount?: number | null
           created_at?: string
           dinner_id: string
           food_item_id?: string | null
           id?: string
           label: string
+          oda_product_id?: string | null
           position?: number
+          unit?: string
           updated_at?: string
           user_id?: string
         }
         Update: {
-          amount_grams?: number | null
+          amount?: number | null
           created_at?: string
           dinner_id?: string
           food_item_id?: string | null
           id?: string
           label?: string
+          oda_product_id?: string | null
           position?: number
+          unit?: string
           updated_at?: string
           user_id?: string
         }
@@ -390,6 +396,57 @@ export type Database = {
           key?: string
           label?: string
           unit?: string
+        }
+        Relationships: []
+      }
+      oda_products: {
+        Row: {
+          archived_at: string | null
+          brand: string | null
+          created_at: string
+          front_url: string | null
+          gross_price: number | null
+          gross_unit_price: number | null
+          id: string
+          is_available: boolean
+          name: string
+          name_extra: string | null
+          source_id: string
+          synced_at: string
+          unit_price_unit: string | null
+          updated_at: string
+        }
+        Insert: {
+          archived_at?: string | null
+          brand?: string | null
+          created_at?: string
+          front_url?: string | null
+          gross_price?: number | null
+          gross_unit_price?: number | null
+          id?: string
+          is_available?: boolean
+          name: string
+          name_extra?: string | null
+          source_id: string
+          synced_at?: string
+          unit_price_unit?: string | null
+          updated_at?: string
+        }
+        Update: {
+          archived_at?: string | null
+          brand?: string | null
+          created_at?: string
+          front_url?: string | null
+          gross_price?: number | null
+          gross_unit_price?: number | null
+          id?: string
+          is_available?: boolean
+          name?: string
+          name_extra?: string | null
+          source_id?: string
+          synced_at?: string
+          unit_price_unit?: string | null
+          updated_at?: string
         }
         Relationships: []
       }

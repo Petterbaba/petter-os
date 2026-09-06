@@ -47,8 +47,12 @@ export function HandlelisteKort({
               key={`${indeks}-${linje.label}`}
               className="flex items-baseline gap-3 px-4 py-2 text-sm sm:px-5"
             >
-              <span className="w-20 shrink-0 text-right text-xs tabular-nums text-ink-3">
-                {linje.grams === null ? "–" : `${formatTall(linje.grams)} g`}
+              <span className="w-24 shrink-0 text-right text-xs tabular-nums text-ink-3">
+                {linje.mengder.length === 0
+                  ? "–"
+                  : linje.mengder
+                      .map((mengde) => `${formatTall(mengde.sum)} ${mengde.enhet}`)
+                      .join(" + ")}
               </span>
               <span className="min-w-0 flex-1 break-words text-ink-2">
                 {linje.label}
