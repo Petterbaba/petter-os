@@ -1,5 +1,6 @@
 import type { Dinner } from "./types";
 import { parseIsoDato } from "./dato";
+import { ingrediensGram } from "./ernaering";
 
 // Ren utvalgslogikk for «Lag ukesmeny» (maal.ts-/ernaering.ts-presedensen):
 // ingen datatilgang, ingen tilfeldighet uten injisert kilde, så reglene
@@ -31,8 +32,8 @@ export function proteinKategori(middag: Dinner): ProteinKategori {
     if (treff === undefined) {
       continue;
     }
-    // Umappet mengde («etter smak») teller lite, men ikke null.
-    gram.set(treff[0], (gram.get(treff[0]) ?? 0) + (rad.amountGrams ?? 25));
+    // Uomregnbar mengde («etter smak» o.l.) teller lite, men ikke null.
+    gram.set(treff[0], (gram.get(treff[0]) ?? 0) + (ingrediensGram(rad) ?? 25));
   }
   let beste: ProteinKategori = "vegetar";
   let maks = 0;

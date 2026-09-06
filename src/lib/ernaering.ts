@@ -1,10 +1,12 @@
 import type { Dinner, DinnerIngredient, DinnerPlan } from "./types";
+import { tilGram, type Enhet, ENHETER } from "./enheter";
 
 // Ren næringsmatematikk for mat-domenet (maal.ts-presedensen) – delt mellom
 // /mat-siden og ev. dashbordkort så de alltid viser samme tall. Næring
 // lagres ALDRI (veikartets daily_nutrition-prinsipp) – alt beregnes her fra
-// gram × matvarens verdier per 100 g. Funksjonene svarer null når noe ikke
-// kan beregnes – UI-et viser da «–» i stedet for NaN.
+// gram × matvarens verdier per 100 g; mengder i andre enheter regnes om
+// via enheter.ts. Funksjonene svarer null når noe ikke kan beregnes –
+// UI-et viser da «–» i stedet for NaN.
 
 export type Naering = {
   kcal: number;
@@ -14,16 +16,28 @@ export type Naering = {
   fiberG: number;
 };
 
+// Mengden i gram for en ingrediensrad – null når mengden mangler («etter
+// smak») eller enheten ikke kan regnes om for matvaren (mangler
+// porsjonsvekt). Delt med ukesmeny-proteinvektingen så alle gram-tall
+// avledes ett sted.
+export function ingrediensGram(ingrediens: DinnerIngredient): number | null {
+  return tilGram(
+    ingrediens.amount,
+    ingrediens.unit,
+    ingrediens.foodItem?.portions ?? null,
+  );
+}
+
 // Hvor mye av oppskriften tallene dekker: en ingrediens teller kun når den
-// er mappet mot en matvare OG har grammengde. UI-et kan vise «basert på
-// 7 av 9 ingredienser» når dekningen ikke er full.
+// er mappet mot en matvare OG mengden kan regnes om til gram. UI-et kan
+// vise «basert på 7 av 9 ingredienser» når dekningen ikke er full.
 export type NaeringsDekning = {
   talte: number;
   totalt: number;
 };
 
 function erTellende(ingrediens: DinnerIngredient): boolean {
-  return ingrediens.foodItem !== null && ingrediens.amountGrams !== null;
+  return ingrediens.foodItem !== null && ingrediensGram(ingrediens) !== null;
 }
 
 export function naeringsDekning(middag: Dinner): NaeringsDekning {
@@ -41,11 +55,12 @@ export function naeringForMiddag(middag: Dinner): Naering | null {
   const sum: Naering = { kcal: 0, proteinG: 0, fatG: 0, carbsG: 0, fiberG: 0 };
 
   for (const rad of middag.ingredients) {
-    if (rad.foodItem === null || rad.amountGrams === null) {
+    const gram = ingrediensGram(rad);
+    if (rad.foodItem === null || gram === null) {
       continue;
     }
     noenTalte = true;
-    const andel = rad.amountGrams / 100;
+    const andel = gram / 100;
     sum.kcal += andel * rad.foodItem.kcalPer100g;
     sum.proteinG += andel * (rad.foodItem.proteinPer100g ?? 0);
     sum.fatG += andel * (rad.foodItem.fatPer100g ?? 0);
@@ -73,20 +88,25 @@ export function naeringPerPorsjon(middag: Dinner): Naering | null {
 
 export type HandlelisteLinje = {
   label: string; // matvarenavnet når mappet, ellers oppskriftens eget navn
-  grams: number | null; // sum av angitte mengder; null når ingen er angitt
+  mengder: { enhet: Enhet; sum: number }[]; // per angitt enhet; tom = kun «etter smak»
   antallRetter: number; // hvor mange planlagte middager linjen inngår i
 };
 
 // Aggregert handleliste for de planlagte middagene: like ingredienser slås
 // sammen – mappet matvare er samme vare på tvers av oppskrifter, umappede
-// grupperes på normalisert label. Planer uten kjent middag (f.eks. arkivert
-// etter planlegging) hoppes stille over.
+// grupperes på normalisert label. Mengdene summeres per ENHET slik de er
+// angitt («4 stk egg», ikke «232 g egg» – man handler i oppskriftens
+// enheter); samme vare i to enheter gir to summer på linjen. Planer uten
+// kjent middag (f.eks. arkivert etter planlegging) hoppes stille over.
 export function aggregerHandleliste(
   planer: DinnerPlan[],
   middager: Dinner[],
 ): HandlelisteLinje[] {
   const middagPerId = new Map(middager.map((middag) => [middag.id, middag]));
-  const linjer = new Map<string, HandlelisteLinje>();
+  const linjer = new Map<
+    string,
+    { label: string; mengder: Map<Enhet, number>; antallRetter: number }
+  >();
 
   for (const plan of planer) {
     const middag = middagPerId.get(plan.dinnerId);
@@ -100,11 +120,11 @@ export function aggregerHandleliste(
         rad.foodItem?.id ?? `label:${rad.label.trim().toLowerCase()}`;
       const linje = linjer.get(nokkel) ?? {
         label: rad.foodItem?.name ?? rad.label,
-        grams: null,
+        mengder: new Map<Enhet, number>(),
         antallRetter: 0,
       };
-      if (rad.amountGrams !== null) {
-        linje.grams = (linje.grams ?? 0) + rad.amountGrams;
+      if (rad.amount !== null) {
+        linje.mengder.set(rad.unit, (linje.mengder.get(rad.unit) ?? 0) + rad.amount);
       }
       if (!talteIDennePlanen.has(nokkel)) {
         linje.antallRetter += 1;
@@ -114,7 +134,14 @@ export function aggregerHandleliste(
     }
   }
 
-  return [...linjer.values()].sort((a, b) =>
-    a.label.localeCompare(b.label, "nb"),
-  );
+  return [...linjer.values()]
+    .map((linje) => ({
+      label: linje.label,
+      // Fast enhetsrekkefølge (som i skjemaet) så linjene er stabile.
+      mengder: ENHETER.filter((enhet) => linje.mengder.has(enhet)).map(
+        (enhet) => ({ enhet, sum: linje.mengder.get(enhet)! }),
+      ),
+      antallRetter: linje.antallRetter,
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label, "nb"));
 }

@@ -2,6 +2,8 @@
 // Datalaget i src/lib/data/ mapper fra DB-rader (eller mock) til disse typene,
 // så komponentene aldri berøres når en datakilde byttes.
 
+import type { Enhet } from "./enheter";
+
 export type WorkoutSet = {
   id: string;
   workoutId: string;
@@ -160,13 +162,30 @@ export type FoodItem = {
   portions: FoodPortion[];
 };
 
+// Én Oda-vare (speiler oda_products – DELT referansedata speilet nattlig
+// fra Odas åpne API av scripts/synk-oda.mjs). `id` er Odas produkt-id
+// (source_id) – samme verdi som dinner_ingredients.oda_product_id.
+// Prisene er tidsstemplet cache til visning/grovsortering, aldri sannhet.
+export type OdaProduct = {
+  id: string;
+  name: string;
+  brand: string | null;
+  nameExtra: string | null; // pakkebeskrivelse («2 stk, 375 g»)
+  grossPrice: number | null;
+  grossUnitPrice: number | null;
+  unitPriceUnit: string | null; // «kg», «l», «stk»
+};
+
 // Én ingrediensrad (speiler dinner_ingredients). `foodItem` flettes inn av
-// datalaget; raden teller i næringsberegningen kun når både foodItem og
-// amountGrams er satt («salt og pepper» står med bare label).
+// datalaget; raden teller i næringsberegningen kun når både foodItem er
+// satt og mengden kan regnes om til gram via enheter.ts («salt og pepper»
+// står med bare label).
 export type DinnerIngredient = {
   id: string;
   label: string; // navnet slik oppskriften sier det
-  amountGrams: number | null;
+  amount: number | null; // i `unit`; null = «etter smak»
+  unit: Enhet;
+  odaProductId: string | null; // kildereferanse til Oda-produktet (aldri pris)
   position: number;
   foodItem: FoodItem | null;
 };

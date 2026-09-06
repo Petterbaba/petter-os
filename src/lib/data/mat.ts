@@ -3,8 +3,10 @@ import type {
   DinnerPlan,
   FoodItem,
   FoodPortion,
+  OdaProduct,
 } from "@/lib/types";
 import type { Json } from "@/lib/database.types";
+import { erEnhet, type Enhet } from "@/lib/enheter";
 import { opprettServerKlient } from "@/lib/supabase/server";
 
 // RLS begrenser dinners/dinner_plans til innlogget bruker, så spørringene
@@ -28,7 +30,7 @@ const MATVARE_KOLONNER =
 // NB: må være ÉN bokstavelig streng – supabase-js parser select-strengen på
 // typenivå, og sammensetting («+»/template) kollapser typene til feil.
 const MIDDAG_KOLONNER =
-  "id, title, servings, instructions, notes, oda_recipe_id, source_url, dinner_ingredients(id, label, amount_grams, position, food_items(id, name, kcal_per_100g, protein_per_100g, fat_per_100g, carbs_per_100g, fiber_per_100g, portions))";
+  "id, title, servings, instructions, notes, oda_recipe_id, source_url, dinner_ingredients(id, label, amount, unit, oda_product_id, position, food_items(id, name, kcal_per_100g, protein_per_100g, fat_per_100g, carbs_per_100g, fiber_per_100g, portions))";
 
 type MatvareRad = {
   id: string;
@@ -100,7 +102,11 @@ export async function getMiddager(): Promise<Dinner[]> {
       .map((ingrediens) => ({
         id: ingrediens.id,
         label: ingrediens.label,
-        amountGrams: ingrediens.amount_grams,
+        amount: ingrediens.amount,
+        // DB håndhever kun generisk ikke-tom enhet; en ukjent verdi (kan
+        // ikke skrives via appen) tolkes tolerant som gram.
+        unit: erEnhet(ingrediens.unit) ? ingrediens.unit : "g",
+        odaProductId: ingrediens.oda_product_id,
         position: ingrediens.position,
         foodItem:
           ingrediens.food_items === null
@@ -135,9 +141,84 @@ export async function sokMatvarer(sok: string): Promise<FoodItem[]> {
   return (data ?? []).map(tilMatvare);
 }
 
+// Autosøk i den LOKALE Oda-katalogen (speilet av scripts/synk-oda.mjs) –
+// raskt og stabilt, uavhengig av Odas servere og uten Oda-innlogging.
+// Jokertegn og or-syntakstegn strippes fra brukerinput (sokMatvarer-
+// presedensen; komma/parenteser ville brutt or-filteret).
+export async function sokOdaProdukter(sok: string): Promise<OdaProduct[]> {
+  const renset = sok.replace(/[%_\\,()]/g, "").trim();
+  if (renset === "") {
+    return [];
+  }
+
+  const supabase = await opprettServerKlient();
+  const { data, error } = await supabase
+    .from("oda_products")
+    .select(
+      "source_id, name, brand, name_extra, gross_price, gross_unit_price, unit_price_unit",
+    )
+    .is("archived_at", null)
+    .eq("is_available", true)
+    .or(`name.ilike.%${renset}%,brand.ilike.%${renset}%`)
+    .order("name")
+    .limit(20);
+
+  if (error) {
+    throw new Error(`Kunne ikke søke i Oda-katalogen: ${error.message}`);
+  }
+
+  return (data ?? []).map((rad) => ({
+    id: rad.source_id,
+    name: rad.name,
+    brand: rad.brand,
+    nameExtra: rad.name_extra,
+    grossPrice: rad.gross_price,
+    grossUnitPrice: rad.gross_unit_price,
+    unitPriceUnit: rad.unit_price_unit,
+  }));
+}
+
+// Katalogstatus til den stille linjen på /mat («6 637 varer · synket …») –
+// gjør ferskheten synlig uten at noen må åpne terminalen.
+export async function getOdaKatalogStatus(): Promise<{
+  antall: number;
+  sistSynket: string | null;
+}> {
+  const supabase = await opprettServerKlient();
+  const [antallSvar, synketSvar] = await Promise.all([
+    supabase
+      .from("oda_products")
+      .select("id", { count: "exact", head: true })
+      .is("archived_at", null),
+    supabase
+      .from("oda_products")
+      .select("synced_at")
+      .order("synced_at", { ascending: false })
+      .limit(1),
+  ]);
+
+  if (antallSvar.error) {
+    throw new Error(
+      `Kunne ikke hente katalogstatus: ${antallSvar.error.message}`,
+    );
+  }
+  if (synketSvar.error) {
+    throw new Error(
+      `Kunne ikke hente katalogstatus: ${synketSvar.error.message}`,
+    );
+  }
+
+  return {
+    antall: antallSvar.count ?? 0,
+    sistSynket: synketSvar.data?.[0]?.synced_at ?? null,
+  };
+}
+
 export type NyIngrediens = {
   label: string;
-  amountGrams: number | null;
+  amount: number | null;
+  unit: Enhet;
+  odaProductId: string | null;
   foodItemId: string | null;
 };
 
@@ -165,7 +246,9 @@ async function settInnIngredienser(
     ingredienser.map((rad, indeks) => ({
       dinner_id: dinnerId,
       label: rad.label,
-      amount_grams: rad.amountGrams,
+      amount: rad.amount,
+      unit: rad.unit,
+      oda_product_id: rad.odaProductId,
       food_item_id: rad.foodItemId,
       position: indeks,
     })),
