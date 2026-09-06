@@ -104,7 +104,10 @@ export default async function Mat({
         nesteUke={skiftDager(mandag, 7)}
         erDenneUken={mandag === denneUken}
         handleliste={
-          <div className="space-y-2">
+          // key: server-JSX sendt som prop over klientgrensen
+          // deserialiseres som dynamisk barneliste i dev – uten key gir
+          // React 19 en falsk «unique key»-advarsel i konsollen.
+          <div key="handleliste" className="space-y-2">
             <HandlelisteKort planer={planer} middager={middager} />
             <OdaKort
               mandag={mandag}

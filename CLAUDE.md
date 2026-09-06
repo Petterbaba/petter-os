@@ -25,12 +25,15 @@ Driftsdokumentasjon («hvordan gjør jeg …») bor i wikien `docs/` – se
   eu-north-1, free tier. NB: free tier auto-pauser etter ~1 ukes inaktivitet
   og har ingen automatiske backups (se Backup).
 - `@supabase/ssr` + `@supabase/supabase-js` er de eneste dataavhengighetene.
-- Kjøres lokalt med `npm run dev`. Hosting BESLUTTET (sep. 2026, ikke
-  satt opp ennå – gjøres i fase 7): appen på Vercel Hobby (auto-deploy
-  fra main, preview per PR; `maxDuration` må opp for kurv-actionen),
-  nattlig katalogsynk via GitHub Actions (offentlig repo = gratis;
-  `SUPABASE_DB_URL` kun som Actions-secret). Ev. eget domene via
-  Cloudflare-DNS (Petter kjenner det fra før).
+- Kjøres lokalt med `npm run dev`. Hosting LIVE (6. sep 2026):
+  **https://petter-os.vercel.app** på Vercel Hobby – auto-deploy ved
+  push til main, preview-URL per PR (NB: previews deler
+  produksjonsdatabasen). `maxDuration = 60` er satt i `mat/page.tsx`
+  for kurv-actionen. Nattlig katalogsynk via GitHub Actions
+  (offentlig repo = gratis; `SUPABASE_DB_URL` kun som Actions-secret,
+  aldri i Vercel). Supabase Site URL skal peke på Vercel-URL-en.
+  Ev. eget domene via Cloudflare-DNS senere (Petter kjenner det fra
+  AS-et).
 
 ## Viktig: git
 
