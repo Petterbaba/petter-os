@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import {
   fjernPlanlagtMiddag,
+  flyttPlanlagtMiddag,
   getMiddager,
   getUkesplan,
   planleggMiddager,
@@ -290,6 +291,39 @@ export async function planleggMiddagAction(
 
   revalidatePath("/mat");
   return { ok: true, melding: "Ukesplan oppdatert." };
+}
+
+// Dra-og-slipp i ukesplanen. Kalles imperativt fra UkesplanKort (React 19
+// server function, sokMatvarerAction-mønsteret) – ingen skjema å binde
+// til. Klienten sender kun datoene; hvilken middag som ligger hvor leses
+// på serveren (flyttPlanlagtMiddag: ledig dag = flytt, opptatt = bytt).
+export async function flyttMiddagAction(
+  fra: unknown,
+  til: unknown,
+): Promise<ActionResultat> {
+  if (
+    typeof fra !== "string" ||
+    typeof til !== "string" ||
+    !erGyldigIsoDato(fra) ||
+    !erGyldigIsoDato(til) ||
+    fra === til
+  ) {
+    return { ok: false, melding: "Kunne ikke flytte middagen. Prøv igjen." };
+  }
+
+  let flyttet: boolean;
+  try {
+    flyttet = await flyttPlanlagtMiddag(fra, til);
+  } catch (feil) {
+    // Generisk melding i UI; detaljer kun i serverloggen.
+    console.error("Flytting i ukesplanen feilet:", feil);
+    return { ok: false, melding: "Kunne ikke flytte middagen. Prøv igjen." };
+  }
+
+  revalidatePath("/mat");
+  return flyttet
+    ? { ok: true }
+    : { ok: false, melding: "Dagen har ingen middag lenger – planen er oppdatert." };
 }
 
 // «Lag ukesmeny»: fyller ledige dager (modus «fyll») eller bytter hele

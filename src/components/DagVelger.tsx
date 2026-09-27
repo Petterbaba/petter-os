@@ -7,10 +7,16 @@ import type { ActionResultat } from "@/lib/actions";
 import { formatDato } from "@/lib/format";
 import { naeringPerPorsjon } from "@/lib/ernaering";
 import type { UkeDag } from "./UkesplanKort";
+import { MiddagOversikt } from "./MiddagOversikt";
+import { SirkelIkon } from "./SirkelIkon";
 
 // Dagsvalget i dialogen: klikk på en dagsrute i ukesplanen åpner listen
-// over middager med én «Velg»-knapp per rett (HelloFresh-mønsteret sett
-// fra dagen). Én liten form per rad; vellykket lagring lukker dialogen.
+// over middager med en pluss-knapp per rett (HelloFresh-mønsteret sett
+// fra dagen); den valgte retten har minus i stedet (fjerner, som
+// minus-knappen på dagskortet). Én liten form per rad; vellykket lagring
+// lukker dialogen.
+// Har dagen alt en middag, vises den øverst (næring + ingredienser, delt
+// med MiddagDetalj) med «Fjern» rett under – listen blir da «Bytt middag».
 export function DagVelger({
   dag,
   plan,
@@ -24,6 +30,11 @@ export function DagVelger({
   onLagret: () => void;
   onLukk: () => void;
 }) {
+  const valgt =
+    plan === undefined
+      ? undefined
+      : middager.find((middag) => middag.id === plan.dinnerId);
+
   return (
     <div className="p-4 sm:p-5">
       <div className="mb-4 flex items-start justify-between gap-3">
@@ -45,6 +56,30 @@ export function DagVelger({
         </button>
       </div>
 
+      {plan !== undefined && (
+        <section className="mb-5 rounded-xl border border-edge p-3 sm:p-4">
+          {valgt === undefined ? (
+            <p className="text-sm text-ink-3">
+              Middagen som sto her finnes ikke lenger i katalogen.
+            </p>
+          ) : (
+            <>
+              <h3 className="mb-3 break-words text-base font-semibold leading-snug text-ink">
+                {valgt.title}
+              </h3>
+              <MiddagOversikt middag={valgt} />
+            </>
+          )}
+          <FjernForm dato={dag.dato} onLagret={onLagret} />
+        </section>
+      )}
+
+      {plan !== undefined && middager.length > 0 && (
+        <h3 className="mb-2 text-xs font-medium uppercase tracking-widest text-ink-3">
+          Bytt middag
+        </h3>
+      )}
+
       {middager.length === 0 ? (
         <p className="text-sm text-ink-3">
           Ingen middager i katalogen ennå – legg inn den første med «Ny
@@ -55,7 +90,7 @@ export function DagVelger({
           {middager.map((middag) => (
             <VelgRad
               key={middag.id}
-              dato={dag.dato}
+              dag={dag}
               middag={middag}
               erValgt={plan?.dinnerId === middag.id}
               onLagret={onLagret}
@@ -63,21 +98,17 @@ export function DagVelger({
           ))}
         </ul>
       )}
-
-      {plan !== undefined && (
-        <FjernForm dato={dag.dato} onLagret={onLagret} />
-      )}
     </div>
   );
 }
 
 function VelgRad({
-  dato,
+  dag,
   middag,
   erValgt,
   onLagret,
 }: {
-  dato: string;
+  dag: UkeDag;
   middag: Dinner;
   erValgt: boolean;
   onLagret: () => void;
@@ -98,8 +129,8 @@ function VelgRad({
         action={handling}
         className="flex items-center gap-3 px-3 py-2"
       >
-        <input type="hidden" name="dato" value={dato} />
-        <input type="hidden" name="middag" value={middag.id} />
+        <input type="hidden" name="dato" value={dag.dato} />
+        <input type="hidden" name="middag" value={erValgt ? "" : middag.id} />
         <span className="min-w-0 flex-1">
           <span className="block break-words text-sm text-ink">
             {middag.title}
@@ -119,14 +150,18 @@ function VelgRad({
         </span>
         <button
           type="submit"
-          disabled={venter || erValgt}
-          className={`shrink-0 rounded-lg border px-3 py-1.5 text-xs transition-colors disabled:opacity-50 ${
+          disabled={venter}
+          aria-label={
             erValgt
-              ? "border-accent text-ink"
-              : "border-edge text-ink hover:border-accent"
+              ? `Fjern ${middag.title} fra ${dag.ukedagLang}`
+              : `Velg ${middag.title} for ${dag.ukedagLang}`
+          }
+          title={erValgt ? "Fjern middagen fra dagen" : "Velg middagen"}
+          className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg transition-colors hover:bg-bg hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent disabled:animate-pulse disabled:opacity-50 ${
+            erValgt ? "text-accent" : "text-ink-3"
           }`}
         >
-          {erValgt ? "Valgt" : venter ? "Lagrer …" : "Velg"}
+          <SirkelIkon tegn={erValgt ? "minus" : "pluss"} className="h-5 w-5" />
         </button>
       </form>
     </li>
