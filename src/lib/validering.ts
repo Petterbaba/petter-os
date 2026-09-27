@@ -32,3 +32,13 @@ export function parseNorskTall(input: string): number | null {
   const tall = Number(utenTusenskille.replace(",", "."));
   return Number.isFinite(tall) ? tall : null;
 }
+
+// uuid-formen på id-er fra skjulte felt og URL-segmenter (/kokebok/[id]).
+// Manipulerte verdier avvises før de når databasen. (Fjerde bruker –
+// kokeboken – løftet mønsteret hit; journal/mål/reiser har egne kopier.)
+const UUID_MONSTER =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function erUuid(verdi: string): boolean {
+  return UUID_MONSTER.test(verdi);
+}

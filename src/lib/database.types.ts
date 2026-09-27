@@ -19,6 +19,86 @@ export type Database = {
   }
   public: {
     Tables: {
+      cooking_session_steps: {
+        Row: {
+          done_at: string
+          session_id: string
+          step_id: string
+          user_id: string
+        }
+        Insert: {
+          done_at?: string
+          session_id: string
+          step_id: string
+          user_id?: string
+        }
+        Update: {
+          done_at?: string
+          session_id?: string
+          step_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cooking_session_steps_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "cooking_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cooking_session_steps_step_id_fkey"
+            columns: ["step_id"]
+            isOneToOne: false
+            referencedRelation: "dinner_steps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cooking_sessions: {
+        Row: {
+          created_at: string
+          dinner_id: string
+          ended_at: string | null
+          id: string
+          paused_at: string | null
+          paused_seconds: number
+          started_at: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          dinner_id: string
+          ended_at?: string | null
+          id?: string
+          paused_at?: string | null
+          paused_seconds?: number
+          started_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          dinner_id?: string
+          ended_at?: string | null
+          id?: string
+          paused_at?: string | null
+          paused_seconds?: number
+          started_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cooking_sessions_dinner_id_fkey"
+            columns: ["dinner_id"]
+            isOneToOne: false
+            referencedRelation: "dinners"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dinner_ingredients: {
         Row: {
           amount: number | null
@@ -111,10 +191,50 @@ export type Database = {
           },
         ]
       }
+      dinner_steps: {
+        Row: {
+          body: string
+          created_at: string
+          dinner_id: string
+          id: string
+          position: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          dinner_id: string
+          id?: string
+          position?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          dinner_id?: string
+          id?: string
+          position?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dinner_steps_dinner_id_fkey"
+            columns: ["dinner_id"]
+            isOneToOne: false
+            referencedRelation: "dinners"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dinners: {
         Row: {
           archived_at: string | null
+          cook_minutes: number | null
           created_at: string
+          difficulty: string | null
           id: string
           instructions: string | null
           notes: string | null
@@ -127,7 +247,9 @@ export type Database = {
         }
         Insert: {
           archived_at?: string | null
+          cook_minutes?: number | null
           created_at?: string
+          difficulty?: string | null
           id?: string
           instructions?: string | null
           notes?: string | null
@@ -140,7 +262,9 @@ export type Database = {
         }
         Update: {
           archived_at?: string | null
+          cook_minutes?: number | null
           created_at?: string
+          difficulty?: string | null
           id?: string
           instructions?: string | null
           notes?: string | null
@@ -525,12 +649,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -554,11 +678,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -579,11 +703,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -604,11 +728,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -621,11 +745,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }

@@ -12,6 +12,7 @@ const meny = [
   { href: "/investeringer", navn: "Investeringer", beskrivelse: "portefølje" },
   { href: "/metrikker", navn: "Metrikker", beskrivelse: "vektkurve" },
   { href: "/mat", navn: "Mat", beskrivelse: "middager og ukesplan" },
+  { href: "/kokebok", navn: "Kokebok", beskrivelse: "oppskrifter og matlaging" },
   { href: "/journal", navn: "Journal", beskrivelse: "refleksjoner" },
   { href: "/reiser", navn: "Reiser", beskrivelse: "kart og turer" },
   { href: "/innstillinger", navn: "Innstillinger", beskrivelse: "konto og passord" },

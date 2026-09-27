@@ -3,7 +3,8 @@
 > **Denne filen er midlertidig.** Når alle punktene under er gjennomført:
 > slett filen og commit slettingen (`git rm NESTE-STEG.md`). Veikartet
 > videre bor permanent i CLAUDE.md; driftsdokumentasjon i `docs/`.
-> Sist oppdatert: 27. august 2026 (mål-modulen levert, ikke committet).
+> Sist oppdatert: 27. september 2026 (kokeboken levert på `feat/kokebok`;
+> neste store økt er «Oda: handlelisten blir kurven», punkt 0 nederst).
 
 ## Gjennomført 8. august
 
@@ -157,20 +158,93 @@ Gjenstår manuelt (Petter):
 - [ ] `npm run backup` (ukesrutinen; goals-migrasjonen laget kun nye
       tabeller, så den gikk uten – ta den nå som ukesbackup)
 
+## GJENNOMFØRT 27. september: ukesplan og kokebok
+
+Mat (fase 6) ble levert 1.–6. sep (se CLAUDE.md, «Mat»). Denne dagen:
+
+- **Ukesplanen** (PR fra `feat/ukesplan-dra-og-slipp`, merget): faste
+  kortstørrelser og fullt dagsnavn, dra-og-slipp mellom dager
+  (`@dnd-kit/core`; ledig dag = flytt, opptatt = bytt), minus på kortene
+  og pluss/minus i dagsvelgeren, dagens middag øverst i dagsvelgeren.
+- **Kokeboken** (`feat/kokebok`): `/kokebok` med én editor for alle
+  middager (dialogeditoren på `/mat` er fjernet), steg som egne rader,
+  tid og vanskelighetsgrad, og matlagingsmodus på oppskriftssiden: timer
+  med Pause/Fortsett og Avbryt, avhuking per steg, «Ferdig – lagre
+  tiden» nederst (eller siste steg), historikk med sletting og bryteren
+  «Hold skjermen på». Migrasjoner `20260927154258_kokebok` (backfill:
+  152 steg i 34 middager) og `20260927185401_kokebok_pause`; backup tatt
+  før begge; advisors grønne. Detaljer i CLAUDE.md («Kokebok»).
+
+Gjenstår manuelt (Petter):
+
+- [ ] Test pause-runden lokalt: start, pause, fortsett, avbryt, fullfør
+      med «Ferdig», slett de to testøktene (11 og 41 sek) i historikken
+- [ ] PR for `feat/kokebok` → merge → sjekk `/mat` og `/kokebok` på
+      petter-os.vercel.app → `git switch main && git pull` → slett
+      branchen lokalt
+- [ ] IKKE rediger oppskrifter i produksjon før deployen er ute (gammel
+      kode skriver fremgangsmåten til tekstkolonnen ny kode ikke leser)
+
 ## Neste utviklingsøkter (revidert prioritering)
 
 Habits (fase 2) er UTSATT – innholdet (hvilke vaner) er ikke avklart.
 Modellen er triviell; den venter til vanene er bestemt.
 
-0. **Mat: ukesplanlegger med Oda-data** (`feat/mat`) – besluttet 31. aug,
-   startes i EGEN økt. Forarbeidet er GJORT (31. aug, se **MAT-PLAN.md**):
-   API-er verifisert (Matvaretabellen offisiell næringskilde m/
-   porsjonsvekter; Oda-MCP uten næringsdata, brukes til import +
-   handlekurv), beslutninger tatt (middagene i egen DB, Oda-oppskrifter
-   som utgangspunkt importert som egne kopier – Hardcover-prinsippet) og
-   etappeplan + oppskrifts-inventar (36 retter) klart. Økten starter rett
-   på etappe 1 (migrasjon). Bøker fase 1 (under) rykker ned,
-   Hardcover-token fortsatt ikke ordnet.
+0. **Oda: handlelisten blir kurven** (`feat/oda-handleliste`) – besluttet
+   27. sep. Retningsendring: Oda skal gjøre det enklere å BESTILLE, med
+   egen kokebok som kilde (oppskriftene trenger ikke finnes hos Oda).
+   Kjeden er ukesplan → aggregert handleliste → **handlelisten er det som
+   havner i Oda-kurven**, og det er den som optimaliseres.
+
+   **Problemet i dag:** «Legg i Oda-kurven» sender Oda-*oppskriftene*
+   (`oda_recipe_id`) én og én. Oda velger da varer og mengder per
+   oppskrift, egne retter hoppes over, og ingenting kan optimaliseres
+   fordi appen aldri bestemmer hva som havner i kurven.
+
+   **Fakta (sjekket 27. sep):**
+   - Kurv-verktøyet (`manipulate_cart`) tar `productId` + antall, ikke
+     bare oppskrifter. Antall er alltid en delta – les `get_cart` først.
+   - Katalogen har 6 489 varer; 98 % har pris + enhetspris (kg/l/stk).
+     Pakkestørrelse = pris / enhetspris (stikkprøver: «370 g» → 0,370 kg,
+     «18 stk» egg → 1,080 kg).
+   - 331 ingrediensrader: 320 koblet til Matvaretabellen, bare 12 til et
+     Oda-produkt; 323 i gram, 4 i stk, 4 i ss.
+   - `aggregerHandleliste` (`src/lib/ernaering.ts`) slår alt sammen på
+     matvare og summerer per enhet – men kjenner ikke Oda-produkter.
+
+   **Foreslått kjede:**
+   1. Vare-kobling per MATVARE (ikke per rett): «kjøttdeig» → ett
+      Oda-produkt, gjelder alle oppskrifter. ~100 valg i stedet for 331.
+      Ev. overstyring per rett (`dinner_ingredients.oda_product_id`
+      finnes alt). Krever en ny per-bruker-tabell (migrasjon).
+   2. Handleliste per Oda-produkt med antall pakker: behov i gram →
+      hele pakker, rester synlige («700 g → 2 × 400 g, 100 g til overs»).
+      Gram ↔ stk/l via `src/lib/enheter.ts`.
+   3. «Har hjemme»: salt, olje, krydder hakes bort; appen husker
+      basisvarene.
+   4. Optimalisering: samme vare på tvers av retter (automatisk), større
+      pakke når kiloprisen er lavere (forslag), rester. Overlapp-forslag i
+      ukesplanen (parkert idé i CLAUDE.md) kan bygge på samme grunnlag.
+   5. Kurven fylles med VARER: les kurven, send kun differansen, så et
+      nytt trykk aldri dobler.
+
+   **Valg som må tas før planen skrives** (anbefaling først):
+   - Kobling per matvare med overstyring per rett – eller bare per rett?
+   - Skal optimaliseringen foreslå (du godkjenner) eller bestemme selv?
+   - Fjerne den oppskriftsbaserte kurv-banen helt (Oda-id blir bare
+     kildereferanse) – eller beholde den ved siden av?
+
+   **Regler:** Si fra FØR Oda-kurven leses eller endres. Priser og
+   pakkestørrelser er volatile Oda-data og lagres aldri utover katalog-
+   cachen (CLAUDE.md, «Ukeshandel»). Appen skriver til Oda-MCP, men leser
+   priser fra den lokale katalogen.
+
+   **Gjør først (små, samme økt eller før):**
+   - Migrasjon 2 for kokeboken: `kokebok_drop_instructions` (dropper
+     `dinners.instructions`) – KUN etter at `feat/kokebok` er deployet.
+     Etternøler-backfill + sikring, se CLAUDE.md («Kokebok»).
+   - Tid og vanskelighetsgrad for de 34 Oda-rettene – rutinen står i
+     `docs/mat-synk-og-import.md` («Oppfølging»).
 1. **Bøker + Hardcover-synk** (`feat/boker`) – avtalt 26. aug: egen
    `books`-tabell (dataeierskap – Hardcover er kilde, ikke fasit),
    «Synk fra Hardcover»-server action (GraphQL, `HARDCOVER_API_TOKEN`

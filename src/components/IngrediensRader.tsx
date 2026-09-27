@@ -1,25 +1,18 @@
 "use client";
 
 import {
-  useActionState,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  useTransition,
-} from "react";
-import {
-  lagreMiddagAction,
   sokMatvarerAction,
   sokOdaProdukterAction,
   type OdaProduktTreff,
-} from "@/app/mat/actions";
+} from "@/app/kokebok/actions";
 import type { Dinner } from "@/lib/types";
-import type { ActionResultat } from "@/lib/actions";
 import { ENHETER, type Enhet } from "@/lib/enheter";
-import { SkjemaFelt } from "./skjema/SkjemaFelt";
-import { SkjemaTekstFelt } from "./skjema/SkjemaTekstFelt";
-import { LagreKnappAnimert } from "./skjema/LagreKnappAnimert";
+import { useAutosok } from "@/lib/useAutosok";
+
+// Ingrediens-editoren i oppskriftsskjemaet: dynamisk radliste med
+// Oda-katalogsøk som primærvei og Matvaretabellen-kobling for næring.
+// Rad-STATE eies av skjemaet (så remount-nøkkelen der dekker React 19s
+// form-reset); denne filen eier radens form, felt og serialisering.
 
 // Verdiene er per 100 g (Matvaretabellen); protein kan mangle i kilden.
 type ValgtMatvare = {
@@ -29,7 +22,7 @@ type ValgtMatvare = {
   proteinPer100g: number | null;
 };
 
-type IngrediensRad = {
+export type IngrediensRad = {
   nokkel: number; // stabil React-key uavhengig av posisjon
   label: string;
   mengde: string; // norsk tall-tekst i valgt enhet; tom = «etter smak»
@@ -46,7 +39,7 @@ type IngrediensRad = {
   matvareForslag: string | null;
 };
 
-function tilRader(middag: Dinner | undefined): IngrediensRad[] {
+export function tilIngrediensRader(middag: Dinner | undefined): IngrediensRad[] {
   if (!middag) {
     return [];
   }
@@ -70,81 +63,22 @@ function tilRader(middag: Dinner | undefined): IngrediensRad[] {
   }));
 }
 
-// Lever i dialogen (MatUtforsker eier <dialog>-elementet). Redigering
-// forhåndsutfyller feltene via skjult id-felt (journal-mønsteret); skjult
-// odaid-felt bevarer kildekoblingen for importerte retter. Ingrediens-
-// radene er klient-state (dynamisk liste) og sendes som JSON i ett skjult
-// felt; actionen validerer dem like strengt som vanlige felt.
-export function MiddagSkjema({
-  rediger,
-  onAvbryt,
-  onLagret,
-}: {
-  rediger?: Dinner;
-  onAvbryt: () => void;
-  onLagret: () => void;
-}) {
-  const [resultat, handling] = useActionState<ActionResultat | undefined, FormData>(
-    lagreMiddagAction,
-    undefined,
-  );
-  const verdier = resultat && !resultat.ok ? resultat.verdier : undefined;
+export function nyIngrediensRad(nokkel: number): IngrediensRad {
+  return {
+    nokkel,
+    label: "",
+    mengde: "",
+    enhet: "g",
+    odaProduktId: null,
+    navngitt: false,
+    matvare: null,
+    matvareForslag: null,
+  };
+}
 
-  // Lukk dialogen etter vellykket lagring – med nok forsinkelse til at
-  // lagre-animasjonen og kvitteringen rekker å vises. close() på en
-  // allerede lukket dialog er no-op, så re-kjøringer er ufarlige.
-  useEffect(() => {
-    if (!resultat?.ok) return;
-    const timer = setTimeout(onLagret, 1600);
-    return () => clearTimeout(timer);
-  }, [resultat, onLagret]);
-
-  const [rader, setRader] = useState<IngrediensRad[]>(() => tilRader(rediger));
-  const [nesteNokkel, setNesteNokkel] = useState(rader.length);
-
-  // React 19 kjører native form.reset() etter HVER fullført action – også
-  // feilede. Ingrediensradene er kontrollerte og re-rendres ikke ved uendret
-  // state, så DOM-en ville blitt stående nullstilt; remount via ny key
-  // tvinger de kontrollerte verdiene tilbake. Radene nullstilles i tillegg
-  // etter vellykket lagring. («Adjust state during render»-mønsteret.)
-  const [forrigeResultat, setForrigeResultat] = useState(resultat);
-  const [nullstillNokkel, setNullstillNokkel] = useState(0);
-  if (resultat !== forrigeResultat) {
-    setForrigeResultat(resultat);
-    setNullstillNokkel((nokkel) => nokkel + 1);
-    if (resultat?.ok) {
-      setRader(tilRader(rediger));
-    }
-  }
-
-  function oppdaterRad(nokkel: number, endring: Partial<IngrediensRad>) {
-    setRader((gamle) =>
-      gamle.map((rad) => (rad.nokkel === nokkel ? { ...rad, ...endring } : rad)),
-    );
-  }
-
-  function leggTilRad() {
-    setRader((gamle) => [
-      ...gamle,
-      {
-        nokkel: nesteNokkel,
-        label: "",
-        mengde: "",
-        enhet: "g",
-        odaProduktId: null,
-        navngitt: false,
-        matvare: null,
-        matvareForslag: null,
-      },
-    ]);
-    setNesteNokkel((nokkel) => nokkel + 1);
-  }
-
-  function fjernRad(nokkel: number) {
-    setRader((gamle) => gamle.filter((rad) => rad.nokkel !== nokkel));
-  }
-
-  const serialiserteRader = JSON.stringify(
+// Formen server-actionen validerer (parseIngredienser).
+export function serialiserIngredienser(rader: IngrediensRad[]): string {
+  return JSON.stringify(
     rader.map((rad) => ({
       label: rad.label.trim(),
       mengde: rad.mengde.trim(),
@@ -153,113 +87,48 @@ export function MiddagSkjema({
       foodItemId: rad.matvare?.id ?? null,
     })),
   );
+}
 
+// Fieldset med skjult JSON-felt, radene og «+ Legg til ingrediens».
+export function IngrediensRader({
+  rader,
+  onOppdater,
+  onLeggTil,
+  onFjern,
+}: {
+  rader: IngrediensRad[];
+  onOppdater: (nokkel: number, endring: Partial<IngrediensRad>) => void;
+  onLeggTil: () => void;
+  onFjern: (nokkel: number) => void;
+}) {
   return (
-    <form action={handling} className="p-4 sm:p-5">
-      <div className="mb-4 flex items-baseline justify-between gap-3">
-        <h2 className="text-xs font-medium uppercase tracking-widest text-ink-3">
-          {rediger ? "Rediger middag" : "Ny middag"}
-        </h2>
-        <button
-          type="button"
-          onClick={onAvbryt}
-          className="text-xs text-ink-3 transition-colors hover:text-ink"
-        >
-          Avbryt
-        </button>
+    <fieldset>
+      <legend className="mb-1 block text-xs text-ink-3">
+        Ingredienser (tom mengde = «etter smak»)
+      </legend>
+      <input
+        type="hidden"
+        name="ingredienser"
+        value={serialiserIngredienser(rader)}
+      />
+      <div className="flex flex-col gap-2">
+        {rader.map((rad) => (
+          <IngrediensRadFelt
+            key={rad.nokkel}
+            rad={rad}
+            onOppdater={(endring) => onOppdater(rad.nokkel, endring)}
+            onFjern={() => onFjern(rad.nokkel)}
+          />
+        ))}
       </div>
-      {rediger && <input type="hidden" name="id" value={rediger.id} />}
-      {rediger?.odaRecipeId && (
-        <input type="hidden" name="odaid" value={rediger.odaRecipeId} />
-      )}
-      <div className="flex flex-col gap-3">
-        <div className="grid grid-cols-[1fr_6rem] gap-3">
-          <SkjemaFelt
-            etikett="Tittel"
-            name="tittel"
-            type="text"
-            autoComplete="off"
-            placeholder="Kremet laksepasta"
-            defaultValue={verdier?.tittel ?? rediger?.title}
-            required
-          />
-          <SkjemaFelt
-            etikett="Porsjoner"
-            name="porsjoner"
-            type="number"
-            min={1}
-            max={50}
-            step={1}
-            inputMode="numeric"
-            defaultValue={
-              verdier?.porsjoner ??
-              (rediger ? String(rediger.servings) : "2")
-            }
-            required
-          />
-        </div>
-
-        <fieldset key={`rader-${nullstillNokkel}`}>
-          <legend className="mb-1 block text-xs text-ink-3">
-            Ingredienser (tom mengde = «etter smak»)
-          </legend>
-          <input type="hidden" name="ingredienser" value={serialiserteRader} />
-          <div className="flex flex-col gap-2">
-            {rader.map((rad) => (
-              <IngrediensRadFelt
-                key={rad.nokkel}
-                rad={rad}
-                onOppdater={(endring) => oppdaterRad(rad.nokkel, endring)}
-                onFjern={() => fjernRad(rad.nokkel)}
-              />
-            ))}
-          </div>
-          <button
-            type="button"
-            onClick={leggTilRad}
-            className="mt-2 rounded-lg border border-edge px-3 py-1.5 text-xs text-ink transition-colors hover:border-accent"
-          >
-            + Legg til ingrediens
-          </button>
-        </fieldset>
-
-        <SkjemaTekstFelt
-          etikett="Fremgangsmåte (valgfritt)"
-          name="fremgangsmate"
-          rows={4}
-          defaultValue={verdier?.fremgangsmate ?? rediger?.instructions ?? undefined}
-        />
-        <SkjemaFelt
-          etikett="Kilde-lenke (valgfritt)"
-          name="kilde"
-          type="url"
-          autoComplete="off"
-          placeholder="https://…"
-          defaultValue={verdier?.kilde ?? rediger?.sourceUrl ?? undefined}
-        />
-        <SkjemaTekstFelt
-          etikett="Notater (valgfritt)"
-          name="notater"
-          rows={2}
-          defaultValue={verdier?.notater ?? rediger?.notes ?? undefined}
-        />
-        <div>
-          <LagreKnappAnimert
-            resultat={resultat}
-            idleTekst={rediger ? "Oppdater" : "Lagre"}
-            lagretTekst={rediger ? "Oppdatert" : "Lagret"}
-          />
-        </div>
-      </div>
-      {resultat && (
-        <p
-          role={resultat.ok ? "status" : "alert"}
-          className="mt-3 text-sm text-ink-2"
-        >
-          {resultat.melding}
-        </p>
-      )}
-    </form>
+      <button
+        type="button"
+        onClick={onLeggTil}
+        className="mt-2 rounded-lg border border-edge px-3 py-1.5 text-xs text-ink transition-colors hover:border-accent"
+      >
+        + Legg til ingrediens
+      </button>
+    </fieldset>
   );
 }
 
@@ -414,63 +283,6 @@ function per100g(matvare: ValgtMatvare): string {
     : `${kcal} · ${Math.round(matvare.proteinPer100g)} g protein`;
 }
 
-// Autosøk-mønsteret (matflyt-planen, 6. sep 2026): søker automatisk
-// ~300 ms etter siste tastetrykk – ingen «Søk»-knapp. Ref-telleren
-// forkaster svar som kommer tilbake i feil rekkefølge; under to tegn
-// søkes det ikke, og trefflisten nullstilles i input-handleren.
-function useAutosok<T>(
-  hentTreff: (
-    term: string,
-  ) => Promise<{ ok: true; treff: T[] } | { ok: false; melding: string }>,
-  initialSok = "",
-) {
-  const [sok, setSok] = useState(initialSok);
-  const [treff, setTreff] = useState<T[] | null>(null);
-  const [melding, setMelding] = useState<string | null>(null);
-  const [soker, startSok] = useTransition();
-  const sokNr = useRef(0);
-
-  const utforSok = useCallback(
-    (term: string) => {
-      const nr = ++sokNr.current;
-      startSok(async () => {
-        const svar = await hentTreff(term);
-        if (nr !== sokNr.current) {
-          return; // et nyere søk er alt underveis
-        }
-        if (svar.ok) {
-          setTreff(svar.treff);
-          setMelding(svar.treff.length === 0 ? "Ingen treff." : null);
-        } else {
-          setTreff(null);
-          setMelding(svar.melding);
-        }
-      });
-    },
-    [hentTreff, startSok],
-  );
-
-  useEffect(() => {
-    const term = sok.trim();
-    if (term.length < 2) {
-      return;
-    }
-    const timer = setTimeout(() => utforSok(term), 300);
-    return () => clearTimeout(timer);
-  }, [sok, utforSok]);
-
-  function oppdaterSok(verdi: string) {
-    setSok(verdi);
-    if (verdi.trim().length < 2) {
-      sokNr.current++; // forkast ev. svar som er underveis
-      setTreff(null);
-      setMelding(null);
-    }
-  }
-
-  return { sok, oppdaterSok, treff, melding, soker };
-}
-
 // Stabile referanser til server-funksjonene, mappet til hookens form.
 async function hentMatvarer(term: string) {
   const svar = await sokMatvarerAction(term);
@@ -540,7 +352,7 @@ function MatvareVelger({
         value={sok}
         onChange={(hendelse) => oppdaterSok(hendelse.target.value)}
         onKeyDown={(hendelse) => {
-          // Enter skal aldri sende hele middagsskjemaet – autosøket
+          // Enter skal aldri sende hele oppskriftsskjemaet – autosøket
           // håndterer søkingen selv.
           if (hendelse.key === "Enter") {
             hendelse.preventDefault();
@@ -605,7 +417,7 @@ function OdaVelger({
         value={sok}
         onChange={(hendelse) => oppdaterSok(hendelse.target.value)}
         onKeyDown={(hendelse) => {
-          // Enter skal aldri sende hele middagsskjemaet – autosøket
+          // Enter skal aldri sende hele oppskriftsskjemaet – autosøket
           // håndterer søkingen selv.
           if (hendelse.key === "Enter") {
             hendelse.preventDefault();
