@@ -1,9 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState } from "react";
 import { planleggMiddagAction } from "@/app/mat/actions";
 import type { Dinner, DinnerPlan } from "@/lib/types";
 import type { ActionResultat } from "@/lib/actions";
+import { oppskriftMeta } from "@/lib/matlaging";
 import type { UkeDag } from "./UkesplanKort";
 import { MiddagOversikt } from "./MiddagOversikt";
 
@@ -11,22 +13,23 @@ import { MiddagOversikt } from "./MiddagOversikt";
 // åpner hele retten som overlegg). Nederst velger man hvilke dager i den
 // viste uken retten skal inn på – én liten form per dag (slett-knapp-
 // mønsteret), så en dag som alt har retten kan fjernes med samme knapp.
+// «Lag mat» og «Rediger» lenker til kokeboken (én editor, matlagingen
+// med timer og avhuking bor der).
 export function MiddagDetalj({
   middag,
   dager,
   planer,
   iDag,
-  onRediger,
   onLukk,
 }: {
   middag: Dinner;
   dager: UkeDag[];
   planer: DinnerPlan[];
   iDag: string;
-  onRediger: () => void;
   onLukk: () => void;
 }) {
   const planPerDag = new Map(planer.map((plan) => [plan.plannedOn, plan]));
+  const meta = oppskriftMeta(middag, { medPorsjoner: false });
 
   return (
     <div className="p-4 sm:p-5">
@@ -38,6 +41,9 @@ export function MiddagDetalj({
           <h2 className="mt-1 break-words text-lg font-semibold leading-snug text-ink">
             {middag.title}
           </h2>
+          {meta !== "" && (
+            <p className="mt-1 text-xs tabular-nums text-ink-3">{meta}</p>
+          )}
         </div>
         <button
           type="button"
@@ -50,14 +56,18 @@ export function MiddagDetalj({
 
       <MiddagOversikt middag={middag} />
 
-      {middag.instructions && (
+      {middag.steps.length > 0 && (
         <section className="mt-4">
           <h3 className="text-xs font-medium uppercase tracking-widest text-ink-3">
             Fremgangsmåte
           </h3>
-          <p className="mt-2 whitespace-pre-line break-words text-sm leading-relaxed text-ink-2">
-            {middag.instructions}
-          </p>
+          <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-sm leading-relaxed text-ink-2 marker:text-ink-3">
+            {middag.steps.map((steg) => (
+              <li key={steg.id} className="whitespace-pre-line break-words pl-1">
+                {steg.body}
+              </li>
+            ))}
+          </ol>
         </section>
       )}
 
@@ -102,14 +112,19 @@ export function MiddagDetalj({
         </p>
       </section>
 
-      <div className="mt-5 flex items-center justify-end">
-        <button
-          type="button"
-          onClick={onRediger}
+      <div className="mt-5 flex items-center justify-end gap-2">
+        <Link
+          href={`/kokebok/${middag.id}/rediger`}
           className="rounded-lg border border-edge px-3 py-1.5 text-xs text-ink transition-colors hover:border-accent"
         >
           Rediger
-        </button>
+        </Link>
+        <Link
+          href={`/kokebok/${middag.id}`}
+          className="rounded-lg border border-accent px-3 py-1.5 text-xs text-ink transition-colors hover:bg-accent/10"
+        >
+          Lag mat
+        </Link>
       </div>
     </div>
   );

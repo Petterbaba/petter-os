@@ -40,7 +40,8 @@ alltid før en import-økt hvis katalogen er tom eller gammel.
 `oda_products` er delt referansedata speilet fra **Odas åpne
 nettside-API** (uoffisielt, uten innlogging – åpent siden
 Kolonial.no-tiden; kan endres uten varsel). Ingrediens-autosøket i
-middagsskjemaet går mot denne tabellen – aldri live mot Oda. Samme
+oppskriftseditoren på `/kokebok` går mot denne tabellen – aldri live mot
+Oda. Samme
 regler som food_items: ingen skrivepolicyer, skriving kun via script.
 
 **Kjøring** (samme forutsetninger som over):
@@ -82,7 +83,15 @@ Rutinen per rett:
    ren ingrediensliste med mengder for 4 porsjoner («400 g Kyllingfilet»,
    «2 dl Kremfløte») pluss fremgangsmåten. Det var slik importen 3. sep
    2026 ble gjort.
-2. Behold oppskriftens egne enheter der appen støtter dem (sep. 2026:
+2. Ta med tid og vanskelighetsgrad fra `recipe_search`-metadataene:
+   - `cookingDurationIso8601` → `cook_minutes`: dager × 1 440 + timer ×
+     60 + minutter (`P0DT00H25M00S` = 25, `P0DT02H30M00S` = 150,
+     `P1DT00H00M00S` = 1 440). Editoren godtar inntil 10 080.
+   - `difficultyString` → `difficulty` i små bokstaver (`Lett` → `lett`,
+     `Middels` → `middels`, `Vanskelig` → `vanskelig`). En annen verdi →
+     **STOPP**: databasen avviser den, og settet utvides med en ny
+     migrasjon – aldri gjett.
+3. Behold oppskriftens egne enheter der appen støtter dem (sep. 2026:
    `dinner_ingredients` har `amount` + `unit` – g, kg, ml, dl, l, ss,
    ts, stk – og gram avledes av matvarens porsjonsvekter i
    `src/lib/enheter.ts`). «2 dl Kremfløte» lagres altså som 2 dl.
@@ -92,9 +101,12 @@ Rutinen per rett:
    hvitløk 4 g). **Kjent felle:** Odas *middagslister*
    (`get_product_list`) oppgir brøker av produktenheter («0,3 × 500 g-
    pakke pasta»), ikke mengder – bruk oppskriftssiden i stedet.
-3. Mapp hver ingrediens mot `food_items` (velg riktig variant – rå/kokt
+4. Mapp hver ingrediens mot `food_items` (velg riktig variant – rå/kokt
    betyr mye for kcal). Petter godkjenner mappingen underveis.
-4. Lagre med Oda-id og oppskrifts-URL som kildereferanse. Dobbeltimport
+5. Lagre med Oda-id og oppskrifts-URL som kildereferanse.
+   Fremgangsmåten lagres som **én rad per steg** i `dinner_steps`
+   (`position` 0, 1, 2 … i oppskriftens rekkefølge, uten «1.»-
+   nummereringen i teksten) – ikke som én tekst. Dobbeltimport
    stoppes av unik indeks per bruker («allerede importert»). Skriv
    antakelser og proxy-mappinger («bacon regnet som rå sideflesk»,
    «korma-saus umappet») i middagens `notes`, så de kan rettes i appen.
@@ -104,10 +116,35 @@ Rutinen per rett:
    transaksjon med eksplisitt `user_id` (direkte DB-tilkobling omgår
    `auth.uid()`-defaulten).
 
-Retter utenfra Oda legges inn manuelt med «Ny middag» på `/mat`. Nye
-ingrediensrader søker i Oda-katalogen (når nettleseren er koblet til
-Oda – ellers Matvaretabellen): treffet blir navnet + produktreferanse,
-og et Matvaretabellen-forslag kjøres automatisk for næringskoblingen.
+Retter utenfra Oda legges inn manuelt med «Ny oppskrift» på
+`/kokebok/ny` (lenken «Ny middag» på `/mat` går dit). Nye ingrediensrader
+søker i den lokale Oda-katalogen (ingen Oda-innlogging nødvendig):
+treffet blir navnet + produktreferanse, og et Matvaretabellen-forslag
+kjøres automatisk for næringskoblingen.
+
+### Oppfølging: tid og vanskelighetsgrad for rettene importert 3. sep 2026
+
+De 34 Oda-rettene ble importert før `cook_minutes`/`difficulty` fantes.
+Engangsjobb i en Claude-økt:
+
+1. `npm run backup`.
+2. Finn rettene som mangler tid (dashboardets SQL-editor, kun lesing):
+   `select title, oda_recipe_id from dinners where oda_recipe_id is not
+   null and cook_minutes is null order by title;`
+3. Slå opp hver rett med Oda-MCP `recipe_search` (tittel) og kontroller
+   at `id` = `oda_recipe_id`. Regn om som i punkt 2 over.
+4. Kjør én `UPDATE` over direkte DB-tilkobling
+   (`psql "$SUPABASE_DB_URL"`):
+
+   ```sql
+   update public.dinners d
+   set cook_minutes = v.minutter, difficulty = v.vanskelighet
+   from (values ('2497', 25, 'lett') /* … én rad per rett */)
+     as v(oda_id, minutter, vanskelighet)
+   where d.oda_recipe_id = v.oda_id;
+   ```
+
+5. Verifiser med samme `select` som i steg 2 – den skal gi 0 rader.
 
 ## Handlekurv hos Oda
 

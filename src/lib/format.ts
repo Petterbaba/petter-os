@@ -61,6 +61,20 @@ export function formatDatoKort(isoDato: string): string {
     .replace(/\.$/, "");
 }
 
+// «12. sep» for TIDSPUNKTER (timestamptz – f.eks. matlagingsøkter). I
+// motsetning til formatDatoKort, som formaterer DATO-strenger i UTC, må et
+// tidspunkt vises i norsk tid – ellers havner en økt kl. 00.30 på dagen
+// før. Kalles kun på serveren (CLDR-avvik mellom Node og nettleser).
+export function formatTidspunktDato(isoTidspunkt: string): string {
+  return new Intl.DateTimeFormat("nb-NO", {
+    day: "numeric",
+    month: "short",
+    timeZone: "Europe/Oslo",
+  })
+    .format(new Date(isoTidspunkt))
+    .replace(/\.$/, "");
+}
+
 // Norsk landnavn fra ISO 3166-1 alfa-2 («no» → «Norge»). Landnavn lagres
 // aldri i databasen – de avledes alltid herfra. of() kaster på ugyldige
 // koder, derfor try/catch med koden selv som nødløsning.

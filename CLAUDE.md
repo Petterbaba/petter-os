@@ -77,12 +77,14 @@ Driftsdokumentasjon («hvordan gjør jeg …») bor i wikien `docs/` – se
   datalaget, aldri av komponenter.
 - Undersider henter kun sitt eget domene (`/metrikker` → `getVekt()`);
   kun `/dashbord` bruker `getDashboardData()`.
-- Status: **metrics, journal, reiser (trips), mål (goals) og mat er live
-  på Supabase**; workouts, investments, habits er fortsatt mock.
+- Status: **metrics, journal, reiser (trips), mål (goals) og mat (inkl.
+  kokebok) er live på Supabase**; workouts, investments, habits er
+  fortsatt mock.
 - Delt skjemavalidering: `src/lib/validering.ts` (`erGyldigIsoDato` –
-  rund-tur-sjekken alle actions bruker – og `parseNorskTall` – norsk
+  rund-tur-sjekken alle actions bruker – `parseNorskTall` – norsk
   komma/tusenskille; mål-skjemaet ble tredje konsument og utløste
-  abstraksjonen).
+  abstraksjonen – og `erUuid`, som kokebok- og mat-actionene og de
+  dynamiske `[id]`-sidene deler; journal/mål/reiser har ennå egne kopier).
 
 ## Migrasjonsflyt (remote-first – absolutte regler)
 
@@ -103,6 +105,12 @@ Driftsdokumentasjon («hvordan gjør jeg …») bor i wikien `docs/` – se
    oppdater `src/lib/database.types.ts`.
 6. Flyten kan senere oppgraderes til lokal CLI-stack
    (`supabase init && supabase link`) uten filendringer.
+7. **Kolonner som koden på Vercel leser eller skriver droppes i EGEN
+   migrasjon etter deploy** (lærdom sep. 2026, kokebok-migrasjonen):
+   previews og produksjon deler DB, så en drop i samme migrasjon som nye
+   tabeller gir 500 fra `apply_migration` til pushen er ute. Mønster:
+   migrasjon 1 er additiv (+ backfill) → ny kode som ikke rører kolonnen →
+   push og verifiser → migrasjon 2 dropper.
 
 ## Databasekonvensjoner
 
@@ -199,10 +207,13 @@ Driftsdokumentasjon («hvordan gjør jeg …») bor i wikien `docs/` – se
 `/` hjem (klokke + meny) · `/dashbord` alt samlet · `/vaner` heatmap + radar ·
 `/maal` (misogi-kort + fremdriftsmål) · `/styrke` · `/investeringer` ·
 `/metrikker` (vekt-input + kurve) · `/mat` (ukesplan + middagskatalog +
-handleliste) · `/journal` · `/reiser` (klikkbart kart + skjema + liste) ·
-`/innstillinger` (konto/passordbytte) · `/logg-inn` (eneste uinnloggede
-side) · `/oda/callback` (route handler, OAuth-retur fra Oda). Undersider
-bruker `SideHeader`.
+handleliste) · `/kokebok` (oppskrifter; `/kokebok/ny` og
+`/kokebok/[id]/rediger` = editoren, `/kokebok/[id]` = oppskrift +
+matlaging – repoets første dynamiske segment) · `/journal` · `/reiser`
+(klikkbart kart + skjema + liste) · `/innstillinger` (konto/passordbytte)
+· `/logg-inn` (eneste uinnloggede side) · `/oda/callback` (route handler,
+OAuth-retur fra Oda). Undersider bruker `SideHeader`; kokebokens
+undersider har i tillegg `TilbakeLenke` (appen har ingen navbar).
 
 ## Reiser (Memory Bank)
 
@@ -282,8 +293,9 @@ bruker `SideHeader`.
   select-policy for innloggede; skriving KUN via `npm run synk:mat`
   (direkte DB-tilkobling som backup-scriptet; `--dry-run` finnes). Upsert
   på `source_id`; borte fra kilden = arkivert. **`dinners`** – per-bruker
-  katalog (`servings`, fremgangsmåte, `oda_recipe_id`/`source_url` som
-  kildereferanse). **`dinner_ingredients`** – `amount` + `unit` (g, kg,
+  katalog (`servings`, `cook_minutes`/`difficulty` fra Odas oppskrifts-
+  data, `oda_recipe_id`/`source_url` som kildereferanse); fremgangsmåten
+  bor i `dinner_steps` (se Kokebok). **`dinner_ingredients`** – `amount` + `unit` (g, kg,
   ml, dl, l, ss, ts, stk; migrasjon `20260906082750`) + nullbar
   `oda_product_id` (kildereferanse fra produktsøket, migrasjon
   `20260906090642`; åpner for produktbasert kurvfylling av egne retter
@@ -329,26 +341,16 @@ bruker `SideHeader`.
 - UI `/mat` (sep. 2026, HelloFresh-modellen etter brukerens ønske –
   kort som utvidet seg på stedet ble forkastet): `max-w-3xl`. Kortene
   utvider seg ALDRI – de er klikkflater som åpner én native `<dialog>`
-  eid av `MatUtforsker` (fire innhold: `MiddagDetalj` = hele oppskriften
-  m/ næringstall og «Legg i ukesplanen»-dagknapper (én form per dag;
-  trykk på valgt dag fjerner), `DagVelger` = middagsliste m/pluss per
-  rett for en klikket dag – valgt rett har minus (`SirkelIkon`; lukker
-  ved lagring); har dagen en middag,
-  vises den øverst (næring + ingredienser via delt `MiddagOversikt`)
-  med «Fjern» rett under og listen som «Bytt middag», samt ny/rediger via
-  `MiddagSkjema` – ingrediensradene er klient-state sendt som JSON i ett
-  skjult felt. Nye rader starter i SØKEMODUS (sep. 2026 – fjernet
-  dobbeltarbeidet navn + kobling): AUTOSØK (delt `useAutosok`-hook:
-  debounce ~300 ms, ingen søkeknapp, ref-teller forkaster utdaterte
-  svar) mot den LOKALE `oda_products`-katalogen; treffet blir navnet +
-  `oda_product_id`, og Matvaretabellen-søket kjøres så automatisk på et
-  brand-strippet forslag fra produktnavnet slik at næringskoblingen
-  bare er ett klikk (og lett å ignorere).
-  «Bruk som navn uten kobling»-utveien dekker det katalogene ikke har;
-  navngitte rader viser redigerbart navnefelt + mengde + enhet-select
-  med koblingene under. Modusen er eksplisitt radstate (`navngitt`),
-  aldri avledet av teksten. Matvaresøket viser kcal OG protein per
-  100 g per treff). Dialogen er `max-w-2xl`.
+  eid av `MatUtforsker` (to innhold: `MiddagDetalj` = hele oppskriften
+  m/ tid og vanskelighet, næringstall, nummererte steg og «Legg i
+  ukesplanen»-dagknapper (én form per dag; trykk på valgt dag fjerner),
+  pluss lenkene «Rediger» og «Lag mat» til kokeboken; `DagVelger` =
+  middagsliste m/pluss per rett for en klikket dag – valgt rett har
+  minus (`SirkelIkon`; lukker ved lagring); har dagen en middag, vises
+  den øverst (næring + ingredienser via delt `MiddagOversikt`) med
+  «Fjern» rett under og listen som «Bytt middag»). Ny/rediger bor i
+  kokeboken – «Ny middag» lenker til `/kokebok/ny` (ÉN editor, se
+  Kokebok). Dialogen er `max-w-2xl`.
   `UkesplanKort` = sju dagsruter + stiplet ukessum-kort (ukenavigasjon
   via `?uke=`; faste korthøyder, fullt dagsnavn; nederst til høyre en
   minus-knapp på dager med middag som fjerner direkte uten bekreftelse,
@@ -377,6 +379,96 @@ bruker `SideHeader`.
   ernaering.ts-presedensen). Pakkeøkonomien (én stor pose fremfor to små)
   hører til handleøkten – priser/pakkestørrelser er volatile Oda-data og
   skal ALDRI inn i DB (se «Ukeshandel» i `docs/mat-synk-og-import.md`).
+
+## Kokebok (oppskrifter + matlaging)
+
+- **Beslutninger (brukerens, 27. sep 2026):** kokeboken viser og
+  redigerer de SAMME middagene som `/mat` (ingen egen samling, ingen
+  kategori); matlagingsøkter lagres i DB (overlever reload, følger
+  mellom enheter, gir historikk); ÉN editor (dialogeditoren på `/mat`
+  ble fjernet); Odas vanskelighetsgrad lagres ved siden av tiden;
+  matlagingen skjer på oppskriftssiden selv (ingen egen kokemodus-rute);
+  skjermbryteren er manuell som i Oda-appen.
+- Migrasjon `20260927154258_kokebok`: `dinners.cook_minutes` (smallint
+  > 0) og `difficulty` (enumerert check `lett`/`middels`/`vanskelig` –
+  Odas sett; ukjent verdi skal stoppe importen, ny migrasjon utvider);
+  **`dinner_steps`** (ett steg per rad, dinner_ingredients-malen;
+  backfilt fra `instructions` – 152 steg i 34 middager);
+  **`cooking_sessions`** (start/stopp; delvis unik `(user_id, dinner_id)
+  where ended_at is null` = maks én aktiv økt per rett, 23505 →
+  gjenoppta); **`cooking_session_steps`** (rad = gjort; insert-policyen
+  binder steget til øktens middag og krever pågående økt). `instructions`
+  står igjen ULEST til migrasjon 2 (`kokebok_drop_instructions`, etter
+  deploy – se Migrasjonsflyt punkt 7). Migrasjon
+  `20260927185401_kokebok_pause`: `cooking_sessions.paused_at` (satt
+  mens en pause pågår) + `paused_seconds` (sum av avsluttede pauser,
+  ≥ 0) + check at en avsluttet økt ikke står på pause.
+- **Bare ferdige økter blir historikk** (brukerens valg 27. sep 2026):
+  «Ferdig – lagre tiden» nederst under stegene eller siste avhukede steg
+  lagrer; «Avbryt» øverst sletter økten (confirm); «Pause/Fortsett»
+  trekker pausetid fra (varighet = slutt − start − `paused_seconds`).
+  Avsluttes en økt under pause, tar `avslutningsFelter` med den
+  pågående pausen. Historikkrader kan slettes (`SlettOktKnapp`, confirm)
+  – økter er loggrader, ikke katalog. Ingen generell admin-side for
+  sletting: data slettes der de vises (Slett*Knapp-mønsteret), og en
+  «mine data»-side hører til fase 7 sammen med eksporten.
+- Avledet, aldri lagret: varighet, «sist laget», «laget N ganger»
+  (eksakt `count`, ikke historikklistens lengde) og neste steg – i
+  `src/lib/matlaging.ts` (ren logikk: `VANSKELIGHETER`, `formatKlokke`,
+  `formatVarighet`, `oppskriftMeta`, `sisteOktPerMiddag`, `nesteSteg`)
+  og datalaget (`getMatlaging`, `getAvsluttedeOkter` – 1 000-økters tak
+  for «sist laget»; view med `security_invoker` er oppgraderingsveien).
+- **«Timeren stopper på siste steg»** avgjøres ett sted: `settStegGjort`
+  i `src/lib/data/mat.ts` teller steg mot avhukinger og setter
+  `ended_at` i samme kall. `ended_at`/`paused_at` klemmes til ≥
+  `started_at` (`naaEtter` – DB- og Vercel-klokken kan avvike). Redigering av en
+  oppskrift sletter og setter inn stegene på nytt, så avhukinger i en
+  pågående økt kaskaderer bort (redigeringssiden advarer når en økt
+  pågår).
+- Editoren (`OppskriftSkjema`, helside): `IngrediensRader` +
+  `StegRader` (opp/ned/fjern, ingen dra-og-slipp) som klient-state
+  sendt som JSON i skjulte felt `ingredienser`/`steg`, validert i
+  `src/app/kokebok/actions.ts` (`parseIngredienser`, `parseSteg` – tomme
+  steg droppes stille; maks 50 steg à 2 000 tegn; tid 1–10 080 min).
+  `nullstillNokkel`-remount mot React 19s form-reset; skjult `odaid`
+  MÅ følge med (ellers nullstilles `oda_recipe_id` og Oda-kurven slutter
+  å virke for retten). Vellykket lagring = `redirect` til oppskriften
+  (utenfor try/catch, etter `revalidatePath`). Arkivering
+  (`ArkiverOppskriftKnapp`, confirm) bruker `arkiverMiddag` – katalog-
+  regelen: arkiveres, slettes aldri.
+- Ingrediensrader starter i SØKEMODUS (sep. 2026 – fjernet
+  dobbeltarbeidet navn + kobling): AUTOSØK (`src/lib/useAutosok.ts`:
+  debounce ~300 ms, ingen søkeknapp, ref-teller forkaster utdaterte
+  svar) mot den LOKALE `oda_products`-katalogen; treffet blir navnet +
+  `oda_product_id`, og Matvaretabellen-søket kjøres så automatisk på et
+  brand-strippet forslag fra produktnavnet slik at næringskoblingen bare
+  er ett klikk (og lett å ignorere). «Bruk som navn uten kobling»-
+  utveien dekker det katalogene ikke har; navngitte rader viser
+  redigerbart navnefelt + mengde + enhet-select med koblingene under.
+  Modusen er eksplisitt radstate (`navngitt`), aldri avledet av
+  teksten. Matvaresøket viser kcal OG protein per 100 g per treff.
+- Matlagingen (`Matlaging`, klient; ingredienser som server-slot mellom
+  timer og steg): uten økt «Start matlaging» + les-kun steg; med økt et
+  kompakt `sticky` timerkort (`OktTimer` = `useSyncExternalStore` med
+  ETT delt sekund-lager som kun oppdateres i abonnementet – Klokke-
+  varianten; står stille under pause via `sekunderBrukt`; «––:––» før
+  hydrering; INGEN live-region på tallet) med Pause/Fortsett, Avbryt og
+  `SkjermBryter` (Screen Wake Lock, av som standard, bes om på nytt ved
+  `visibilitychange`, slippes ved cleanup; uten støtte grået ut).
+  Knappene er én felles `OktKnapp` (liten form per økt-action). Hvert
+  steg (`OktSteg`) er et eget kort med luft imellom (neste steg har
+  aksentkant); HELE kortet er en `role="checkbox"`-knapp med fokusringen
+  innenfor kortet; `gjort`-feltet er målverdien (idempotent, aldri
+  toggle); alle knapper bruker `aria-busy` + onClick-vakt, ALDRI
+  `disabled` (flytter fokus til body – LagreKnappAnimert-regelen). Neste
+  steg: `aria-current="step"` + «Neste»-etikett utenfor knappen.
+  Mattilsynet-attribusjonen står på oppskriftssiden.
+- Next 16: `params` er en Promise; ugyldig/ukjent uuid → `notFound()`;
+  `revalidatePath` med bokstavelige `/kokebok/<id>`-stier. Økt-skjemaene
+  sender middagens id kun for revalidering – serveren avgjør alt annet.
+- Fremtidige utvidelser: timer per steg, porsjonsskalering, avhuking av
+  ingredienser («mise en place»), lim-inn-flere-steg, dra-og-slipp av
+  steg (`@dnd-kit` finnes).
 
 ## Veikart (fase 2–7)
 
@@ -410,5 +502,13 @@ bruker `SideHeader`.
    importert 3. sep – umappede/antatte ingredienser står i hver
    middags `notes`). Full matlogging (`meals`, `meal_items`, view
    `daily_nutrition`) bygges senere oppå samme grunnmur.
+6b. **Kokebok (fremskyndet på brukerens ønske):** `dinner_steps`,
+   `cooking_sessions`, `cooking_session_steps` + tid/vanskelighet på
+   `dinners`; editor og matlaging på `/kokebok`; se egen seksjon over.
+   Migrasjoner `20260927154258_kokebok` og `20260927185401_kokebok_pause`
+   applisert 27. sep 2026. Gjenstår:
+   migrasjon 2 (`kokebok_drop_instructions`) etter deploy, og backfill av
+   `cook_minutes`/`difficulty` for de 34 Oda-rettene
+   (`docs/mat-synk-og-import.md`).
 7. **Eksport + herding:** `export_all()`-RPC + eksport-side, restore-test,
    full advisors-gjennomgang, hosting-sjekkliste.

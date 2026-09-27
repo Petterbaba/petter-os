@@ -3,6 +3,7 @@
 // så komponentene aldri berøres når en datakilde byttes.
 
 import type { Enhet } from "./enheter";
+import type { Vanskelighet } from "./matlaging";
 
 export type WorkoutSet = {
   id: string;
@@ -190,17 +191,20 @@ export type DinnerIngredient = {
   foodItem: FoodItem | null;
 };
 
-// Én middag i katalogen (speiler dinners-tabellen + ingrediensradene).
-// Næring per porsjon er AVLEDET (src/lib/ernaering.ts) og lagres aldri.
+// Én middag i katalogen (speiler dinners-tabellen + ingrediensradene og
+// stegene). Næring per porsjon er AVLEDET (src/lib/ernaering.ts) og lagres
+// aldri. Kokeboken og /mat deler denne typen – samme data, to visninger.
 export type Dinner = {
   id: string;
   title: string;
   servings: number;
-  instructions: string | null;
+  cookMinutes: number | null; // Odas oppgitte tid (eller egen), i minutter
+  difficulty: Vanskelighet | null;
   notes: string | null;
   odaRecipeId: string | null;
   sourceUrl: string | null;
   ingredients: DinnerIngredient[];
+  steps: DinnerStep[]; // fremgangsmåten, sortert på position
 };
 
 // Én planlagt middag (speiler dinner_plans; maks én per dag – ny lagring
@@ -209,6 +213,33 @@ export type DinnerPlan = {
   id: string;
   plannedOn: string; // ISO 8601
   dinnerId: string;
+};
+
+// Ett steg i fremgangsmåten (speiler dinner_steps; sortert på position).
+export type DinnerStep = {
+  id: string;
+  position: number;
+  body: string;
+};
+
+// Én matlagingsøkt (speiler cooking_sessions). Varighet og «sist laget»
+// avledes i src/lib/matlaging.ts – lagres aldri.
+export type CookingSession = {
+  id: string;
+  dinnerId: string;
+  startedAt: string; // ISO 8601-tidspunkt
+  endedAt: string | null; // null = pågår
+  pausedAt: string | null; // satt mens en pause pågår
+  pausedSeconds: number; // sum av avsluttede pauser – trekkes fra varigheten
+};
+
+// Alt matlagingsvisningen trenger for én middag. Heter ikke «Matlaging» –
+// det navnet har klientkomponenten, og begge importeres i samme side.
+export type MatlagingsData = {
+  aktivOkt: CookingSession | null;
+  gjorteStegIder: string[]; // avhukede steg i den aktive økten
+  historikk: CookingSession[]; // avsluttede, nyest først, maks 10
+  antallOkter: number; // ALLE avsluttede økter (eksakt telling)
 };
 
 export type Habit = {

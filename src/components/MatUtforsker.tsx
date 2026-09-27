@@ -4,19 +4,16 @@ import { useCallback, useRef, useState, type ReactNode } from "react";
 import type { Dinner, DinnerPlan } from "@/lib/types";
 import { UkesplanKort, type UkeDag } from "./UkesplanKort";
 import { MiddagListe } from "./MiddagListe";
-import { MiddagSkjema } from "./MiddagSkjema";
 import { MiddagDetalj } from "./MiddagDetalj";
 import { DagVelger } from "./DagVelger";
 
 // Binder ukesplanen, middagskatalogen og dialogen sammen (reise-/mål-
 // mønsteret, utvidet etter HelloFresh-modellen): én native <dialog> huser
-// fire innhold – oppskriftsvisning (klikk på middagskort), dagsvalg
-// (klikk på dagsrute), nytt og rediger (MiddagSkjema). Ny key per middag
-// remounter skjemaets useState-initialverdier når man bytter ny/rediger.
+// to innhold – oppskriftsvisning (klikk på middagskort) og dagsvalg
+// (klikk på dagsrute). Ny og rediger bor i kokeboken (/kokebok – én
+// editor); «Ny middag» og «Rediger» er lenker dit.
 // Handlelisten er en server-rendret slot mellom ukesplan og katalog.
 type Innhold =
-  | { type: "ny" }
-  | { type: "rediger"; middag: Dinner }
   | { type: "vis"; middag: Dinner }
   | { type: "velgDag"; dag: UkeDag };
 
@@ -60,17 +57,7 @@ export function MatUtforsker({
   const planPerDag = new Map(planer.map((plan) => [plan.plannedOn, plan]));
 
   let dialogInnhold: ReactNode = null;
-  if (innhold?.type === "ny" || innhold?.type === "rediger") {
-    const rediger = innhold.type === "rediger" ? innhold.middag : undefined;
-    dialogInnhold = (
-      <MiddagSkjema
-        key={rediger?.id ?? "ny"}
-        rediger={rediger}
-        onAvbryt={lukkDialog}
-        onLagret={lukkDialog}
-      />
-    );
-  } else if (innhold?.type === "vis") {
+  if (innhold?.type === "vis") {
     const middag = middagPerId.get(innhold.middag.id);
     dialogInnhold =
       middag === undefined ? null : (
@@ -80,7 +67,6 @@ export function MatUtforsker({
           dager={dager}
           planer={planer}
           iDag={iDag}
-          onRediger={() => setInnhold({ type: "rediger", middag })}
           onLukk={lukkDialog}
         />
       );
@@ -131,7 +117,6 @@ export function MatUtforsker({
 
       <MiddagListe
         middager={middager}
-        onNy={() => aapne({ type: "ny" })}
         onVis={(middag) => aapne({ type: "vis", middag })}
       />
     </div>

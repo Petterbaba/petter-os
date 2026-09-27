@@ -1,19 +1,19 @@
 "use client";
 
+import Link from "next/link";
 import type { Dinner } from "@/lib/types";
 import { naeringPerPorsjon } from "@/lib/ernaering";
 
 // Middagskatalogen som rutenett av kort (HelloFresh-mønsteret): kortet
 // viser tittel, kcal og protein per porsjon, og klikk åpner hele
 // oppskriften i dialogen (MiddagDetalj, eid av MatUtforsker) – kortene
-// utvider seg aldri på stedet. «Ny middag»-knappen bor i seksjonshodet.
+// utvider seg aldri på stedet. «Ny middag»-lenken i seksjonshodet går til
+// editoren i kokeboken (/kokebok/ny).
 export function MiddagListe({
   middager,
-  onNy,
   onVis,
 }: {
   middager: Dinner[];
-  onNy: () => void;
   onVis: (middag: Dinner) => void;
 }) {
   return (
@@ -27,13 +27,12 @@ export function MiddagListe({
             {middager.length}{" "}
             {middager.length === 1 ? "middag" : "middager"}
           </p>
-          <button
-            type="button"
-            onClick={onNy}
+          <Link
+            href="/kokebok/ny"
             className="rounded-lg border border-edge px-3 py-1.5 text-xs text-ink transition-colors hover:border-accent"
           >
             Ny middag
-          </button>
+          </Link>
         </div>
       </div>
 
