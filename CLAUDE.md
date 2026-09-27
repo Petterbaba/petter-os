@@ -331,8 +331,11 @@ bruker `SideHeader`.
   utvider seg ALDRI – de er klikkflater som åpner én native `<dialog>`
   eid av `MatUtforsker` (fire innhold: `MiddagDetalj` = hele oppskriften
   m/ næringstall og «Legg i ukesplanen»-dagknapper (én form per dag;
-  trykk på valgt dag fjerner), `DagVelger` = middagsliste m/«Velg» per
-  rett for en klikket dag (lukker ved lagring), samt ny/rediger via
+  trykk på valgt dag fjerner), `DagVelger` = middagsliste m/pluss per
+  rett for en klikket dag – valgt rett har minus (`SirkelIkon`; lukker
+  ved lagring); har dagen en middag,
+  vises den øverst (næring + ingredienser via delt `MiddagOversikt`)
+  med «Fjern» rett under og listen som «Bytt middag», samt ny/rediger via
   `MiddagSkjema` – ingrediensradene er klient-state sendt som JSON i ett
   skjult felt. Nye rader starter i SØKEMODUS (sep. 2026 – fjernet
   dobbeltarbeidet navn + kobling): AUTOSØK (delt `useAutosok`-hook:
@@ -347,8 +350,16 @@ bruker `SideHeader`.
   aldri avledet av teksten. Matvaresøket viser kcal OG protein per
   100 g per treff). Dialogen er `max-w-2xl`.
   `UkesplanKort` = sju dagsruter + stiplet ukessum-kort (ukenavigasjon
-  via `?uke=`) med `UkesmenyKnapp`: «Lag ukesmeny» fyller ledige dager,
-  «Ny ukesmeny» (når uken er full) bytter alle sju – `lagUkesmenyAction`
+  via `?uke=`; faste korthøyder, fullt dagsnavn; nederst til høyre en
+  minus-knapp på dager med middag som fjerner direkte uten bekreftelse,
+  via delt `SirkelIkon`). Dagskortene kan DRAS til
+  en annen dag (`@dnd-kit/core`, eneste UI-avhengighet utenom recharts):
+  ledig dag = flytt, opptatt = bytt – avgjøres server-side i
+  `flyttPlanlagtMiddag` (flytt = én UPDATE, bytt = én upsert med to rader;
+  begge atomiske). Mus starter etter 6 px, touch etter langt trykk
+  (250 ms) så sveip scroller; ingen tastatur-dra (dialogen dekker det).
+  `UkesplanKort` har også `UkesmenyKnapp`: «Lag ukesmeny» fyller ledige
+  dager, «Ny ukesmeny» (når uken er full) bytter alle sju – `lagUkesmenyAction`
   henter katalog + ukens plan + siste fire uker og lagrer i ett upsert
   (`planleggMiddager`); utvalget er ren logikk i `src/lib/ukesmeny.ts`
   (ingen gjentakelse i uken, samme proteinkilde ikke to dager på rad,

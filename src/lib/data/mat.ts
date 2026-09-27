@@ -444,3 +444,56 @@ export async function fjernPlanlagtMiddag(plannedOn: string): Promise<void> {
     throw new Error(`Kunne ikke fjerne planlagt middag: ${error.message}`);
   }
 }
+
+// Dra-og-slipp i ukesplanen: flytter middagen fra én dag til en annen.
+// Tilstanden leses her, aldri fra klienten – kortet kan ha blitt endret
+// i en annen fane siden siden ble lastet.
+//  - Ledig måldag: raden får ny dato (én UPDATE – atomisk, og unik
+//    (user_id, planned_on) stopper et kappløp mot en dag som nettopp
+//    ble fylt).
+//  - Opptatt måldag: de to dagene bytter middag i ÉN upsert med to rader
+//    (atomisk – ingen mellomtilstand der en dag mangler middag).
+// Svarer false når fra-dagen ikke har noen middag (lenger).
+export async function flyttPlanlagtMiddag(
+  fra: string,
+  til: string,
+): Promise<boolean> {
+  const supabase = await opprettServerKlient();
+  const { data, error } = await supabase
+    .from("dinner_plans")
+    .select("planned_on, dinner_id")
+    .in("planned_on", [fra, til]);
+
+  if (error) {
+    throw new Error(`Kunne ikke lese ukesplanen: ${error.message}`);
+  }
+
+  const kilde = data.find((rad) => rad.planned_on === fra);
+  const maal = data.find((rad) => rad.planned_on === til);
+  if (kilde === undefined) {
+    return false;
+  }
+
+  if (maal === undefined) {
+    const { error: flyttFeil } = await supabase
+      .from("dinner_plans")
+      .update({ planned_on: til })
+      .eq("planned_on", fra);
+    if (flyttFeil) {
+      throw new Error(`Kunne ikke flytte middagen: ${flyttFeil.message}`);
+    }
+    return true;
+  }
+
+  const { error: byttFeil } = await supabase.from("dinner_plans").upsert(
+    [
+      { planned_on: fra, dinner_id: maal.dinner_id },
+      { planned_on: til, dinner_id: kilde.dinner_id },
+    ],
+    { onConflict: "user_id,planned_on" },
+  );
+  if (byttFeil) {
+    throw new Error(`Kunne ikke bytte middagene: ${byttFeil.message}`);
+  }
+  return true;
+}

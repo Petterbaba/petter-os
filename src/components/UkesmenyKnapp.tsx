@@ -40,7 +40,7 @@ export function UkesmenyKnapp({
       {resultat && (
         <p
           role={resultat.ok ? "status" : "alert"}
-          className="mt-1.5 text-xs text-ink-3"
+          className="mt-1.5 line-clamp-2 text-xs text-ink-3"
         >
           {resultat.melding}
         </p>
