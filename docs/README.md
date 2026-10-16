@@ -10,3 +10,6 @@ hører hjemme i koden eller CLAUDE.md. Én markdown-fil per tema.
 - [Treningsapp og Apple Health](treningsapp-og-apple-health.md) –
   utredning (sep. 2026): PWA vs. egen app, kostnader, skritt fra Apple
   Health via Snarveier, åpne spørsmål
+- [Trening (fase 3)](trening.md) – designdokument (okt. 2026): datamodell,
+  ruter, progresjonsregel, Gravitus-import med øvelsesmapping, åpne
+  spørsmål
